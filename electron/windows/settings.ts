@@ -1,5 +1,5 @@
 import { BrowserWindow } from 'electron'
-import { SECURE_WEB_PREFERENCES, loadRenderer } from './load'
+import { APP_ICON_PATH, SECURE_WEB_PREFERENCES, loadRenderer } from './load'
 
 let win: BrowserWindow | null = null
 
@@ -16,6 +16,7 @@ export function openSettingsWindow(): BrowserWindow {
   }
   win = new BrowserWindow({
     title: 'Kirikomodo 설정',
+    icon: APP_ICON_PATH,
     width: 560,
     height: 640,
     minWidth: 480,

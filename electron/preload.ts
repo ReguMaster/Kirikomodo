@@ -13,6 +13,7 @@ const api: KirikomodoApi = {
   getAppInfo: () => ipcRenderer.invoke(IPC.appInfo),
   openWindow: (name) => ipcRenderer.send(IPC.windowOpen, name),
   closeSelf: () => ipcRenderer.send(IPC.windowCloseSelf),
+  setIgnoreMouse: (ignore) => ipcRenderer.send(IPC.windowIgnoreMouse, ignore),
   quitApp: () => ipcRenderer.send(IPC.appQuit)
 }
 

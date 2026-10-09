@@ -31,6 +31,15 @@ export function App(): JSX.Element {
               onChange={(e) => void update({ window: { alwaysOnTop: e.target.checked } })}
             />
           </div>
+          <div className="settings-row">
+            <label htmlFor="autoStart">Windows 시작 시 자동 실행</label>
+            <input
+              id="autoStart"
+              type="checkbox"
+              checked={settings.general.autoStart}
+              onChange={(e) => void update({ general: { autoStart: e.target.checked } })}
+            />
+          </div>
         </section>
         <section className="settings-section">
           <h2>캐릭터</h2>

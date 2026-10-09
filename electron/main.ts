@@ -1,8 +1,10 @@
 import { app, session } from 'electron'
 import { registerIpc } from './ipc'
+import { syncAutoStart } from './services/autostart'
 import { log } from './services/logger'
-import { flushSettings, getSettings, loadSettings } from './services/settings'
-import { createCharacterWindow, getCharacterWindow } from './windows/character'
+import { flushSettings, getSettings, loadSettings, onSettingsChanged } from './services/settings'
+import { createTray, destroyTray } from './tray'
+import { createCharacterWindow, getCharacterWindow, watchCharacterEnvironment } from './windows/character'
 
 const CSP = [
   "default-src 'self'",
@@ -29,10 +31,14 @@ function showCharacter(): void {
 
 async function bootstrap(): Promise<void> {
   log.info('app', `Kirikomodo ${app.getVersion()} starting`)
-  await loadSettings()
+  const settings = await loadSettings()
   applyProductionCsp()
   registerIpc()
-  createCharacterWindow(getSettings())
+  createCharacterWindow(settings)
+  watchCharacterEnvironment()
+  createTray()
+  syncAutoStart(settings.general.autoStart)
+  onSettingsChanged((next) => syncAutoStart(next.general.autoStart))
   log.info('app', 'ready')
 }
 
@@ -47,11 +53,12 @@ if (!app.requestSingleInstanceLock()) {
   })
 }
 
-// 상주 앱: 채팅/설정 창을 모두 닫아도 종료하지 않는다. 완전 종료는 app.quit() 경유.
+// 상주 앱: 채팅/설정 창을 모두 닫아도 종료하지 않는다. 완전 종료는 트레이 '종료' → app.quit() 경유.
 app.on('window-all-closed', () => undefined)
 
 app.on('before-quit', () => {
   log.info('app', 'quitting')
+  destroyTray()
   void flushSettings()
 })
 

@@ -8,8 +8,10 @@ directories:
 files:
   - out/**
   - package.json
+  - resources/**
 asarUnpack: []
 win:
+  icon: resources/icon.ico
   target:
     - target: nsis
       arch: [x64]

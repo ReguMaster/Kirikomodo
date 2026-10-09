@@ -4,6 +4,7 @@ import { IPC, type AppInfo } from '@shared/ipc'
 import { SettingsPatchSchema } from '@shared/settings'
 import { getSettings, onSettingsChanged, updateSettings } from '../services/settings'
 import { log } from '../services/logger'
+import { getCharacterWindow, setCharacterIgnoreMouse } from '../windows/character'
 import { openChatWindow } from '../windows/chat'
 import { openSettingsWindow } from '../windows/settings'
 
@@ -61,6 +62,9 @@ export function registerIpc(): void {
     else openSettingsWindow()
   })
   on(IPC.windowCloseSelf, null, (event) => BrowserWindow.fromWebContents(event.sender)?.close())
+  on(IPC.windowIgnoreMouse, z.boolean(), (event, ignore) => {
+    if (BrowserWindow.fromWebContents(event.sender) === getCharacterWindow()) setCharacterIgnoreMouse(ignore)
+  })
   on(IPC.appQuit, null, () => app.quit())
 
   onSettingsChanged((settings) => {

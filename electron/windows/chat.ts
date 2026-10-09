@@ -1,5 +1,5 @@
 import { BrowserWindow } from 'electron'
-import { SECURE_WEB_PREFERENCES, loadRenderer } from './load'
+import { APP_ICON_PATH, SECURE_WEB_PREFERENCES, loadRenderer } from './load'
 
 let win: BrowserWindow | null = null
 
@@ -16,6 +16,7 @@ export function openChatWindow(): BrowserWindow {
   }
   win = new BrowserWindow({
     title: 'Kirikomodo',
+    icon: APP_ICON_PATH,
     width: 380,
     height: 520,
     minWidth: 320,
