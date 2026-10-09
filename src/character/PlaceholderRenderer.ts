@@ -177,8 +177,13 @@ export class PlaceholderRenderer implements CharacterRenderer {
 
   playMotion(motion: Motion, priority = 0): Promise<boolean> {
     const clip = CLIPS[motion] ?? CLIPS.idle
-    if (clip.duration === 0) return Promise.resolve(true)
     if (this.motion && this.motion.priority > priority) return Promise.resolve(false)
+    // idle은 즉시 완료되며, 같거나 낮은 우선순위로 진행 중인 모션을 취소한다.
+    if (clip.duration === 0) {
+      this.motion?.resolve(false)
+      this.motion = null
+      return Promise.resolve(true)
+    }
     this.motion?.resolve(false)
     return new Promise((resolve) => {
       this.motion = { clip, priority, start: performance.now(), resolve }

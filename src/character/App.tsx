@@ -1,6 +1,7 @@
 import { useEffect, useRef, type JSX } from 'react'
 import { applyTextScale, useSettingsStore } from '@/app/settingsStore'
 import { createCharacterRenderer, type ManagedRenderer } from './CharacterRenderer'
+import { MotionController } from './MotionController'
 import type { Emotion, HitArea, Motion } from '@shared/types'
 import './character.css'
 
@@ -35,6 +36,7 @@ export function App(): JSX.Element {
     const renderer = createCharacterRenderer('placeholder')
     rendererRef.current = renderer
     void renderer.mount(stage)
+    const motions = new MotionController(renderer)
 
     let ignoring: boolean | null = null
     const setIgnore = (ignore: boolean): void => {
@@ -75,10 +77,8 @@ export function App(): JSX.Element {
         dragging = false
         return
       }
-      renderer.setEmotion(TAP_EMOTION[area])
-      void renderer.playMotion('reactTap', 10).then((finished) => {
-        if (finished) renderer.setEmotion('neutral')
-      })
+      motions.express(TAP_EMOTION[area])
+      void motions.play('reactTap', 'manual')
     }
     const onContextMenu = (event: MouseEvent): void => {
       event.preventDefault()
@@ -96,8 +96,8 @@ export function App(): JSX.Element {
     // 설정 미리보기·테스트용 진입점. 엔진이 붙기 전까지 감정/모션을 직접 지정한다.
     const onPreview = (event: Event): void => {
       const { emotion, motion } = (event as CustomEvent<PreviewDetail>).detail ?? {}
-      if (emotion) renderer.setEmotion(emotion)
-      if (motion) void renderer.playMotion(motion, 10)
+      if (emotion) motions.express(emotion)
+      if (motion) void motions.play(motion, 'manual')
     }
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('pointermove', onPointerMove)
@@ -116,6 +116,7 @@ export function App(): JSX.Element {
       document.removeEventListener('wheel', onWheel)
       document.removeEventListener('kirikomodo:preview', onPreview)
       offCursor()
+      motions.dispose()
       rendererRef.current = null
       void renderer.dispose()
     }
