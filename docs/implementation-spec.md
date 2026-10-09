@@ -1,10 +1,10 @@
 # Kirikomodo — 비LLM 데스크톱 컴패니언 구현 명세서
 
-- 버전: 1.3
+- 버전: 1.5
 - 작성일: 2026-10-10
 - 공식 프로젝트명 / GitHub 저장소명: **Kirikomodo**
 - 구현 대상: Windows 10/11 데스크톱 애플리케이션
-- 개발 방식: Claude Code를 통한 단계적 구현
+- 개발 방식: Claude Code로 기능을 하나씩 구현하고 **기능마다 테스트 없이 자동 로컬 Git 커밋**, 전체 구현 이후에만 통합 테스트·오류 수정·재검증
 - 핵심 기술: Electron, React, TypeScript, Live2D Cubism SDK for Web, SQLite
 - 기본 UI 언어: 한국어
 - 상태: 개발 착수용 설계 초안 (컴패니언 런타임 LLM·음성 AI 미포함; **개발 단계 모델 에셋 제작 파이프라인 포함**)
@@ -41,12 +41,12 @@
 
 ```json
 {
-  "name": "kirikomodo",
-  "productName": "Kirikomodo",
-  "build": {
+    "name": "kirikomodo",
     "productName": "Kirikomodo",
-    "executableName": "Kirikomodo"
-  }
+    "build": {
+        "productName": "Kirikomodo",
+        "executableName": "Kirikomodo"
+    }
 }
 ```
 
@@ -91,21 +91,21 @@ P0만으로도 모델 없는 상태의 실행 파일을 만들 수 있어야 한
 
 ## 3. 기술 선택 및 프로세스
 
-| 구분 | 선택 | 비고 |
-|---|---|---|
-| 데스크톱 셸 | Electron | Windows 10/11 우선 |
-| UI | React + TypeScript + Vite | 엄격한 타입 검사 |
-| 상태 관리 | Zustand 또는 동등한 경량 스토어 | UI 상태와 도메인 상태 구분 |
-| 스타일 | CSS Modules / CSS variables | 불필요한 UI 프레임워크 지양 |
-| 2D 플레이스홀더 | 자체 제작 SVG + CSS/Canvas | Live2D 모델·SDK가 없어도 동작 |
+| 구분                 | 선택                                                  | 비고                                           |
+| -------------------- | ----------------------------------------------------- | ---------------------------------------------- |
+| 데스크톱 셸          | Electron                                              | Windows 10/11 우선                             |
+| UI                   | React + TypeScript + Vite                             | 엄격한 타입 검사                               |
+| 상태 관리            | Zustand 또는 동등한 경량 스토어                       | UI 상태와 도메인 상태 구분                     |
+| 스타일               | CSS Modules / CSS variables                           | 불필요한 UI 프레임워크 지양                    |
+| 2D 플레이스홀더      | 자체 제작 SVG + CSS/Canvas                            | Live2D 모델·SDK가 없어도 동작                  |
 | 에셋 제작 파이프라인 | Python + Pillow/OpenCV(필요 시 선택적 AI 이미지 도구) | 앱 빌드와 독립, 무인 제작 성공을 가정하지 않음 |
-| 레이어 PSD 조립 | 호환 이미지 편집기/스크립팅 + Cubism 임포트 실검증 | RGB 8bit/sRGB, 각 파츠 정렬 유지 |
-| Live2D | 공식 Cubism SDK for Web (호환되는 안정 릴리스 고정) | Core 라이선스 확인; 선택적 로드 |
-| 설정 | JSON (원자적 저장) | 앱 설정·창 위치 |
-| 기록 | SQLite (메인 프로세스) | 스크립트 대화·이벤트 기록 |
-| 검증 | Zod 등 | IPC·설정·이벤트 데이터 검증 |
-| 테스트 | Vitest, Playwright Electron 또는 동등 도구 | 윈도우별 E2E/수동 테스트 병행 |
-| 패키징 | electron-builder 또는 electron-forge | Windows 설치 파일 생성 |
+| 레이어 PSD 조립      | 호환 이미지 편집기/스크립팅 + Cubism 임포트 실검증    | RGB 8bit/sRGB, 각 파츠 정렬 유지               |
+| Live2D               | 공식 Cubism SDK for Web (호환되는 안정 릴리스 고정)   | Core 라이선스 확인; 선택적 로드                |
+| 설정                 | JSON (원자적 저장)                                    | 앱 설정·창 위치                                |
+| 기록                 | SQLite (메인 프로세스)                                | 스크립트 대화·이벤트 기록                      |
+| 검증                 | Zod 등                                                | IPC·설정·이벤트 데이터 검증                    |
+| 테스트               | Vitest, Playwright Electron 또는 동등 도구            | 윈도우별 E2E/수동 테스트 병행                  |
+| 패키징               | electron-builder 또는 electron-forge                  | Windows 설치 파일 생성                         |
 
 **프로세스 분리**
 
@@ -213,46 +213,41 @@ P0만으로도 모델 없는 상태의 실행 파일을 만들 수 있어야 한
 ## 5. 명시적 인터페이스 계약
 
 ```ts
-export type Emotion =
-  | 'neutral' | 'happy' | 'playful' | 'curious'
-  | 'concerned' | 'sleepy' | 'annoyed';
+export type Emotion = "neutral" | "happy" | "playful" | "curious" | "concerned" | "sleepy" | "annoyed";
 
-export type Motion =
-  | 'idle' | 'blink' | 'look' | 'greet' | 'wave'
-  | 'headTilt' | 'stretch' | 'yawn' | 'reactTap' | 'rest';
+export type Motion = "idle" | "blink" | "look" | "greet" | "wave" | "headTilt" | "stretch" | "yawn" | "reactTap" | "rest";
 
 export interface CharacterRenderer {
-  mount(container: HTMLElement): Promise<void>;
-  dispose(): Promise<void>;
-  setEmotion(emotion: Emotion): void;
-  playMotion(motion: Motion, priority?: number): Promise<boolean>;
-  setLookTarget(x: number, y: number): void;
-  setScale(scale: number): void;
-  hitTest(x: number, y: number): 'head' | 'body' | null;
+    mount(container: HTMLElement): Promise<void>;
+    dispose(): Promise<void>;
+    setEmotion(emotion: Emotion): void;
+    playMotion(motion: Motion, priority?: number): Promise<boolean>;
+    setLookTarget(x: number, y: number): void;
+    setScale(scale: number): void;
+    hitTest(x: number, y: number): "head" | "body" | null;
 }
 
 export interface DialogueRequest {
-  text: string;
-  now: string;
-  context: { timeOfDay: 'morning' | 'day' | 'evening' | 'night' };
+    text: string;
+    now: string;
+    context: { timeOfDay: "morning" | "day" | "evening" | "night" };
 }
 export interface DialogueResponse {
-  text: string;
-  emotion: Emotion;
-  motion?: Motion;
-  intent: string;
-  source: 'script';
+    text: string;
+    emotion: Emotion;
+    motion?: Motion;
+    intent: string;
+    source: "script";
 }
 export interface DialogueProvider {
-  respond(request: DialogueRequest): Promise<DialogueResponse>;
+    respond(request: DialogueRequest): Promise<DialogueResponse>;
 }
 
 export interface CompanionEvent {
-  id: string;
-  type: 'USER_TAP' | 'USER_CHAT' | 'TIME_TICK' | 'IDLE_ACTION'
-      | 'PROACTIVE_DIALOGUE' | 'SETTINGS_CHANGED' | 'MODEL_CHANGED';
-  timestamp: number;
-  payload?: unknown;
+    id: string;
+    type: "USER_TAP" | "USER_CHAT" | "TIME_TICK" | "IDLE_ACTION" | "PROACTIVE_DIALOGUE" | "SETTINGS_CHANGED" | "MODEL_CHANGED";
+    timestamp: number;
+    payload?: unknown;
 }
 ```
 
@@ -264,18 +259,18 @@ export interface CompanionEvent {
 
 ```json
 {
-  "schemaVersion": 1,
-  "window": { "alwaysOnTop": true, "scale": 1.0, "opacity": 1.0, "x": null, "y": null },
-  "character": { "activeModelId": "placeholder", "mirror": false },
-  "behavior": {
-    "enabled": true,
-    "proactiveDialogue": true,
-    "dailyProactiveLimit": 3,
-    "minimumProactiveIntervalMinutes": 90,
-    "quietHours": { "enabled": true, "start": "23:00", "end": "08:00" }
-  },
-  "display": { "speechBubbleSeconds": 6, "fpsLimit": 60 },
-  "privacy": { "analytics": false }
+    "schemaVersion": 1,
+    "window": { "alwaysOnTop": true, "scale": 1.0, "opacity": 1.0, "x": null, "y": null },
+    "character": { "activeModelId": "placeholder", "mirror": false },
+    "behavior": {
+        "enabled": true,
+        "proactiveDialogue": true,
+        "dailyProactiveLimit": 3,
+        "minimumProactiveIntervalMinutes": 90,
+        "quietHours": { "enabled": true, "start": "23:00", "end": "08:00" }
+    },
+    "display": { "speechBubbleSeconds": 6, "fpsLimit": 60 },
+    "privacy": { "analytics": false }
 }
 ```
 
@@ -378,8 +373,8 @@ Kirikomodo/
 2. 세 창 구조(캐릭터/채팅/설정)와 트레이 메뉴 구현.
 3. 화면 위 캐릭터 위치·드래그·스케일·설정 복원.
 4. 자체 SVG 캐릭터를 사용한 플레이스홀더 렌더러 구현.
-5. 투명 영역 클릭 통과 처리 및 Windows 실제 동작 확인.
-6. 이 단계에서 `npm run dev`, `npm run dist` 성공.
+5. 투명 영역 클릭 통과 처리 로직 구현(Windows 실동작 확인은 최종 검증 단계로 미룸).
+6. `npm run dev`, `npm run dist` 실행 스크립트와 배포 설정을 구성하되, 실제 실행·빌드 검사는 최종 검증 단계에서 수행.
 
 ### Phase 2 — 캐릭터 행동과 대화
 
@@ -395,7 +390,7 @@ Kirikomodo/
 2. 공식 Cubism Web SDK를 선택적으로 통합.
 3. `.model3.json`/종속 파일 검사, 모델 등록 및 렌더링.
 4. 모델 기능 탐지·의미별 모션/표정 매핑·폴백.
-5. 모델 없이 재실행, 모델 손상, 다른 모델 교체 테스트.
+5. 모델 없이 재실행, 모델 손상, 다른 모델 교체 상황에 대한 예외 처리와 테스트 시나리오 구현(실행은 최종 검증 단계).
 
 ### Phase M — Live2D 모델 제작·자동화 (Phase 1~4와 **병행**)
 
@@ -403,19 +398,31 @@ Kirikomodo/
 2. 키리코 **상반신 정면 모델**에 필요한 레이어·매니페스트·명명 규칙을 작성한다.
 3. 파츠 분리/가려진 부분 복원/레이어 정렬/PSD 조립을 지원하는 CLI를 구현한다. 외부 AI 도구는 설정되어 있을 때만 선택적으로 실행한다.
 4. 이미지·파츠·PSD의 자동 검증, 레이어 합성 미리보기, 사용자 육안 검수 체크리스트를 구현한다.
-5. Cubism Editor의 메쉬·디포머·얼굴 자동 생성·템플릿 적용 절차를 문서화하고, Editor 상호작용을 사람이 검증한다.
-6. 실제 Cubism에서 내보낸 `.model3.json` 모델을 앱으로 가져와 표정·모션·시선·클릭을 테스트한다.
+5. Cubism Editor의 메쉬·디포머·얼굴 자동 생성·템플릿 적용 절차를 문서화하고, 실제 Editor 사용·검수는 최종 검증 단계 또는 별도 수동 단계에 기록한다.
+6. 실제 Cubism 출력 `.model3.json` 모델의 앱 임포트와 표정·모션·시선·클릭을 검증할 테스트 절차를 작성한다. 모델/Editor가 확보된 경우에만 최종 검증 단계에서 실행한다.
 7. 실제 모델이 없을 때 **제작 도구 준비 완료**와 **모델 완성** 상태를 분리 보고한다. 상세 계약은 15절을 따른다.
 
-### Phase 4 — 안정화/패키징
+### Phase 4 — 기능 구현 마무리 및 통합 준비
 
-1. 다중 모니터·DPI·절전 복귀 테스트.
-2. 채팅/설정/트레이 접근성 및 UI 마감.
-3. 단위·통합·E2E 테스트, 주요 기능 회귀 검사.
-4. Windows 설치 패키지 생성, 새 사용자 환경에서 실행 검증.
-5. README, 아키텍처, 모델 가져오기, 라이선스 안내 작성.
+1. 다중 모니터·DPI·절전 복귀 대응 로직을 구현하고, 실제 동작 검사는 최종 단계로 미룬다.
+2. 채팅/설정/트레이 접근성과 UI 마감을 완료한다.
+3. 단위·통합·E2E 테스트 코드와 실패 주입 시나리오를 필요한 범위에서 작성한다. **이 단계에서도 테스트는 실행하지 않는다.**
+4. Windows 패키징 설정, README, 아키텍처, 모델 가져오기, 라이선스 안내를 완성한다.
+5. 명세서 기능 TODO를 전부 점검하고, 외부 에셋·Cubism 등으로 실제 구현할 수 없는 항목은 `BLOCKED_INPUT`/`REQUIRES_EDITOR`로 따로 분류한다.
 
-**개발 원칙:** 단계별로 동작하는 결과를 확인하고 기능 단위로 커밋. **Phase M은 완성된 모델을 요구하지 않고 제작 가능성을 준비·검증하는 병렬 트랙이다.** 외부 에셋 누락 때문에 다른 기능을 중단하지 않는다. TODO만 작성하고 미구현 기능을 완료로 표시하지 않는다. 검증 불가능한 Windows 기능은 수동 테스트 항목으로 명시한다.
+### Phase 5 — 전체 구현 후 일괄 테스트·수정·최종 빌드 (필수)
+
+**Phase 1~4 및 개발 가능한 Phase M 기능의 구현과 기능별 커밋이 끝난 뒤에만 시작한다.**
+
+1. 전체 의존성/환경을 점검하고 `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build`를 일괄 실행한다(실제 제공되는 스크립트에 맞춰 조정).
+2. 단위·통합·E2E, 플레이스홀더, Live2D 모델 폴백, 에셋 검사기 픽스처의 테스트를 수행한다.
+3. Windows에서 창 투명 입력 통과, 트레이, 드래그/위치 저장, 다중 모니터·DPI, 절전 복귀, 시작 프로그램, UI를 점검한다. 실행 환경이 없으면 `NOT_TESTED`와 사유를 정확히 기록한다.
+4. 실패 항목을 원인별로 분류해 수정하고, **수정 하나당 독립적인 한국어 로컬 커밋**을 남긴다. 수정 단계에서는 관련 재현/회귀 테스트를 필요에 따라 실행한다.
+5. 수정이 모두 끝나면 **전체 테스트·타입 검사·lint·빌드를 다시 실행**해 회귀가 없는지 확인한다.
+6. 검증 완료 후 Windows 설치 패키지를 생성하고, 가능한 경우 깨끗한 설치 환경에서 실행·삭제까지 검증한다.
+7. 최종 결과를 `docs/implementation-progress.md`에 `구현 완료(검증 전) / 검증 통과 / 검증 실패 / 미검증 / 외부 도구 필요`로 구분해 기록하고, 테스트 로그·커밋·남은 제약을 보고한다.
+
+**개발 원칙:** **`기능 구현 → 즉시 로컬 커밋 → 다음 기능`**을 반복한다. **기능마다 테스트·타입 검사·lint·빌드를 실행하지 않으며, 전체 구현 후 Phase 5에서 한꺼번에 검사하고 수정**한다(17절 우선 적용). Git diff/스테이징 범위·보안 점검은 테스트가 아니므로 매 커밋마다 유지한다. **Phase M은 완성된 모델을 요구하지 않고 제작 가능성을 준비하는 병렬 트랙**이다. 외부 에셋 부재 때문에 다른 기능을 중단하지 않는다. 미구현 또는 미검증 항목을 검증 완료로 표시하지 않는다.
 
 ## 11. 수용 기준 (완료 판정)
 
@@ -441,6 +448,8 @@ Kirikomodo/
 - [ ] **AC-20:** 권한 있는 모델의 Cubism 내보내기→앱 가져오기→표정/모션/시선 동작 확인까지 성공한 경우에만 실제 모델 통합 완료로 판정한다.
 
 ## 12. 테스트 전략
+
+**실행 시점:** 아래 모든 테스트는 기능별 커밋 과정이 아니라 **Phase 5(전체 기능 구현 후)**에 모아서 실행한다. Phase 1~4에서는 테스트 코드 작성이 가능하지만 실행을 완료 조건으로 요구하지 않는다.
 
 - **Unit:** 스케줄러 타이밍, 방해 금지 경계(23:00~08:00), 일별 발화 상한, 이벤트 우선순위, 키워드 매칭, 설정 직렬화.
 - **Integration:** 이벤트→대화/모션 연결, 모델 로더 검증/폴백, IPC 스키마 검증, DB 읽기/쓰기·마이그레이션.
@@ -471,8 +480,7 @@ Kirikomodo/
 
 ## 14. Claude Code에 전달할 구현 지시문
 
-> 프로젝트 공식 명칭 및 GitHub 저장소명은 **Kirikomodo**야. 앱 제목, 트레이, `package.json`의 `name`/`productName`, Windows 실행 파일, README 등 사용자에게 표시되는 프로젝트 명칭을 0절에 맞춰 통일해. 현재 저장소에서 **이 명세서 v1.3 전체(0~16절)**를 기준으로 Windows 데스크톱 컴패니언을 구현해줘. **앱 런타임의 LLM·Ollama·AI 대화 API·STT/TTS는 구현하지 마.** Live2D 모델이 없으므로 자체 SVG 플레이스홀더로 앱을 먼저 완성하되, **Phase M(15절)의 모델 에셋 제작 파이프라인을 병렬로 구현**해. 원화가 없다면 파츠 명세·제작 CLI·합성 미리보기·PSD 호환성 검사·검수 도구까지만 준비하고, 실제 키리코 모델이 완성됐다고 주장하지 마. 개발 시점의 외부 이미지 AI는 접근 권한·라이선스·사용자 제공 설정이 있는 경우에만 선택적으로 사용하고, 본 앱의 의존성으로 추가하지 마. Cubism Editor는 별도 설치가 필요하며 GUI 리깅/내보내기 미실행 상태를 성공 처리하면 안 돼. Phase 1~4를 순서대로 진행하고 Phase M을 병행하며, 단계마다 타입 검사·테스트·빌드·가능한 E2E 검증을 수행해. 기능 단위로 작은 한글 커밋을 남기고, 구현/미구현·에셋 준비 상태·실제 Editor 검증 여부·테스트 결과를 `docs/implementation-progress.md`에 기록해. UI는 화이트·미니멀, 과장된 AI 대시보드 스타일을 피하고, 적법한 사용 권한이 없는 키리코 원화/게임 추출 에셋/모델을 임의로 포함하거나 배포하지 마.
-
+> 프로젝트 공식 명칭 및 GitHub 저장소명은 **Kirikomodo**야. 앱 제목, 트레이, `package.json`의 `name`/`productName`, Windows 실행 파일, README 등의 프로젝트 명칭을 0절에 맞춰 통일해. 현재 저장소에서 **이 명세서 v1.5 전체(0~17절)**를 기준으로 Windows 컴패니언을 구현해줘. **앱 런타임의 LLM·Ollama·AI 대화 API·STT/TTS는 구현하지 마.** Live2D 모델이 없으므로 자체 SVG 플레이스홀더로 앱을 우선 완성하고, Phase M(15절)의 모델 제작 파이프라인도 병행해. 실제 원화·모델·Cubism Editor가 없을 때는 제작 도구와 문서까지만 구현하고 완성했다고 주장하지 마. **기능 하나 구현이 끝날 때마다 테스트·타입 검사·lint·빌드를 실행하지 말고, 변경 범위와 민감정보만 점검해 해당 기능을 한국어 메시지로 즉시 로컬 커밋해.** 이후 다음 기능을 계속 구현해. **전체 기능을 모두 구현한 다음 Phase 5에서 테스트·타입 검사·lint·빌드를 일괄 실행하고, 발견된 오류를 수정·커밋한 후 전체 재검증**해. Git 원격 푸시나 브랜치 변경은 승인 없이 하지 마. UI는 화이트·미니멀 스타일로 설계하고 권리 미확인 에셋을 임의로 배포하지 마. `docs/implementation-progress.md`에는 구현 여부, `미검증` 상태, 후반 테스트 결과를 정확히 구분해 기록해.
 
 ---
 
@@ -484,11 +492,11 @@ Kirikomodo/
 
 다음 세 항목을 반드시 구분한다.
 
-| 범위 | 담당 | 자동화 원칙 | 완료 판정 |
-|---|---|---|---|
-| 원화·레이어 제작 | 이미지 편집/생성 도구, 개발용 Python | 필요한 입력과 도구가 있으면 반자동화 | 원화/파츠의 실재 및 육안 검수 |
-| 모델 리깅 및 바이너리 출력 | **Live2D Cubism Editor** | 공식 자동화 기능 + 사람 검수, 필요 시 보조 GUI 자동화 | 실제 `.cmo3` 작업본 및 `.moc3`·`.model3.json` 출력 확인 |
-| 런타임 표시 | Electron 앱 + Cubism SDK for Web | 파일 가져오기·모션 제어 자동화 | 앱에서 렌더·표정·이벤트 동작 확인 |
+| 범위                       | 담당                                 | 자동화 원칙                                           | 완료 판정                                               |
+| -------------------------- | ------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------- |
+| 원화·레이어 제작           | 이미지 편집/생성 도구, 개발용 Python | 필요한 입력과 도구가 있으면 반자동화                  | 원화/파츠의 실재 및 육안 검수                           |
+| 모델 리깅 및 바이너리 출력 | **Live2D Cubism Editor**             | 공식 자동화 기능 + 사람 검수, 필요 시 보조 GUI 자동화 | 실제 `.cmo3` 작업본 및 `.moc3`·`.model3.json` 출력 확인 |
+| 런타임 표시                | Electron 앱 + Cubism SDK for Web     | 파일 가져오기·모션 제어 자동화                        | 앱에서 렌더·표정·이벤트 동작 확인                       |
 
 - **AI 사용 경계:** 이미지 생성·세그먼트 분리·인페인팅 등은 개발 과정에서만 수행하는 **선택적 제작 도구**다. 완성된 컴패니언 앱에는 AI 생성 기능이나 외부 AI API를 넣지 않는다.
 - Claude Code만으로 이미지 생성 엔진, 이미지 모델 가중치, Cubism 설치/라이선스가 자동 제공된다고 가정하지 않는다. 준비되지 않았으면 대체 가능한 입·출력 인터페이스만 만들고 해당 단계는 `BLOCKED_INPUT` 또는 `REQUIRES_EDITOR`로 남긴다.
@@ -514,14 +522,14 @@ Kirikomodo/
 
 **권장 파츠 구성 (실제 그림에 맞게 조정)**
 
-| 파츠군 | 필수 레이어 예시 | 비고 |
-|---|---|---|
-| 얼굴 | `face_base`, `ear_l`, `ear_r`, `nose` | 머리 회전을 위한 감춰진 얼굴 윤곽 복원 |
-| 눈/눈썹 | `eye_l_white`, `eye_r_white`, `iris_l`, `iris_r`, `lid_l`, `lid_r`, `brow_l`, `brow_r` | 눈꺼풀·흰자·동공을 가능한 한 분리; 세부 레이어 추가 가능 |
-| 입 | `mouth_base`, `mouth_inner`, `mouth_upper`, `mouth_lower` | 입 열림/미소 변화 구현을 위한 별도 형태 확보 |
-| 머리 | `hair_back`, `hair_side_l`, `hair_side_r`, `hair_front`, `hair_accessory` | 앞머리 아래 얼굴/옆머리 가려진 영역 보완 |
-| 몸통 | `neck`, `torso`, `shoulder_l`, `shoulder_r`, `arm_l`, `arm_r` | 상반신 기본; 팔의 상·하분할은 필요 시 확장 |
-| 장식 | `outfit_front`, `outfit_back`, `accessory_*` | 머리끈·장신구·의상 장식은 독립 회전/흔들림이 필요할 때 분리 |
+| 파츠군  | 필수 레이어 예시                                                                       | 비고                                                        |
+| ------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 얼굴    | `face_base`, `ear_l`, `ear_r`, `nose`                                                  | 머리 회전을 위한 감춰진 얼굴 윤곽 복원                      |
+| 눈/눈썹 | `eye_l_white`, `eye_r_white`, `iris_l`, `iris_r`, `lid_l`, `lid_r`, `brow_l`, `brow_r` | 눈꺼풀·흰자·동공을 가능한 한 분리; 세부 레이어 추가 가능    |
+| 입      | `mouth_base`, `mouth_inner`, `mouth_upper`, `mouth_lower`                              | 입 열림/미소 변화 구현을 위한 별도 형태 확보                |
+| 머리    | `hair_back`, `hair_side_l`, `hair_side_r`, `hair_front`, `hair_accessory`              | 앞머리 아래 얼굴/옆머리 가려진 영역 보완                    |
+| 몸통    | `neck`, `torso`, `shoulder_l`, `shoulder_r`, `arm_l`, `arm_r`                          | 상반신 기본; 팔의 상·하분할은 필요 시 확장                  |
+| 장식    | `outfit_front`, `outfit_back`, `accessory_*`                                           | 머리끈·장신구·의상 장식은 독립 회전/흔들림이 필요할 때 분리 |
 
 - 각 레이어는 **공통 캔버스 좌표계** 또는 정확한 오프셋 메타데이터를 반드시 보유한다. 파츠가 원화의 원래 위치에서 이동하지 않아야 한다.
 - 파츠별 PNG는 RGBA, 가능한 비손실, 투명 배경. **빈 이미지/색상 테두리/잘린 스트로크/반투명 잔여물**을 자동 점검한다.
@@ -533,13 +541,13 @@ Kirikomodo/
 
 `tools/live2d-authoring/`에 앱 본체와 독립적으로 실행 가능한 Python CLI를 구현한다. 구체적인 옵션 이름은 README와 `--help`에 고정·설명한다.
 
-| 명령 예시 | 기능 | 결과 |
-|---|---|---|
-| `python prepare_artwork.py --input <png>` | 입력 형식·크기·색상·알파 검증, 메타데이터 생성 | `source-info.json` |
-| `python validate_layers.py --manifest <json>` | 파츠 명칭/누락/정렬/오프셋/알파/크기 검사 | `layer-validation.json` |
-| `python export_previews.py --manifest <json>` | 레이어 합성 및 각 파츠 판별용 시트 제작 | `composite.png`, `contact-sheet.png` |
-| `python assemble_psd.py --manifest <json>` | 동일 좌표계를 유지하며 PSD 조립(지원되는 편집기/검증된 방식) | `character_layers.psd` 또는 지원 도구 필요 오류 |
-| `python validate_export.py --model <model3.json>` | 출력 파일 참조·파라미터/모션 파일·상대 경로 검증 | `model-export-validation.json` |
+| 명령 예시                                         | 기능                                                         | 결과                                            |
+| ------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------- |
+| `python prepare_artwork.py --input <png>`         | 입력 형식·크기·색상·알파 검증, 메타데이터 생성               | `source-info.json`                              |
+| `python validate_layers.py --manifest <json>`     | 파츠 명칭/누락/정렬/오프셋/알파/크기 검사                    | `layer-validation.json`                         |
+| `python export_previews.py --manifest <json>`     | 레이어 합성 및 각 파츠 판별용 시트 제작                      | `composite.png`, `contact-sheet.png`            |
+| `python assemble_psd.py --manifest <json>`        | 동일 좌표계를 유지하며 PSD 조립(지원되는 편집기/검증된 방식) | `character_layers.psd` 또는 지원 도구 필요 오류 |
+| `python validate_export.py --model <model3.json>` | 출력 파일 참조·파라미터/모션 파일·상대 경로 검증             | `model-export-validation.json`                  |
 
 - **아직 완성된 PNG 파츠가 없는 경우**: 실존하는 원화에서 파츠 분리까지 자동 처리된 것으로 가장하지 말 것. `layers/`에 샘플 기하학 도형 픽스처를 만들어 경로·정렬·PSD 내보내기 테스트만 수행한다.
 - **세그먼테이션/인페인팅 AI 옵션**: 실제 설치와 권한이 확인된 모델·도구가 있을 때만 `tools/live2d-authoring/adapters/` 아래에 어댑터 추가. 원본 파일 불변, 작업 로그/사용 모델/설정 기록. API 키·토큰은 출력 폴더와 Git에 남기지 않는다.
@@ -619,13 +627,13 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 
 ### 15.8 Claude Code 작업 지시 및 커밋 단위
 
-이 절의 자동화 구현은 앱 런타임과 서로 독립된 커밋으로 진행한다.
+에셋 자동화 구현은 앱과 독립된 **기능별 자동 로컬 커밋**으로 진행한다. 각 기능별 테스트 실행은 하지 않고, **Phase 5에서 전체 검사**한다.
 
-1. `docs/live2d-authoring.md`, `docs/asset-rights.md` 및 레이어 계약 작성 → 테스트 포함 커밋.
-2. 제작용 Python CLI, 레이어 검사, 테스트용 레이어 픽스처 작성 → 검사 후 커밋.
-3. 합성 미리보기/연구용 분리 어댑터/PSD 생성 구현 → 지원 범위·실패 케이스 테스트 후 커밋.
-4. Cubism Editor 워크플로 및 반자동 체크리스트 정리 → 사용 불가능 단계 분리 기록 후 커밋.
-5. 실제 모델 준비 시 출력 검증 및 런타임 연계 E2E → 통과한 것만 커밋.
+1. `docs/live2d-authoring.md`, `docs/asset-rights.md` 및 레이어 계약 작성 → 해당 기능 파일만 커밋.
+2. 제작용 Python CLI, 레이어 검사, 테스트용 레이어 픽스처 작성 → 구현 후 커밋(실제 테스트 실행은 Phase 5).
+3. 합성 미리보기/연구용 분리 어댑터/PSD 생성 구현 → 기능 커밋(품질·실패 케이스 검사는 Phase 5).
+4. Cubism Editor 워크플로 및 반자동 체크리스트 정리 → 구현/수동 필요 상태 기록 후 커밋.
+5. 실제 모델이 준비된다면 연계 코드를 구현 후 커밋하고, 출력·런타임 E2E 검증은 Phase 5 또는 수동 검수 단계에서 수행.
 
 **최종 보고에서 별도 표기할 상태:** `앱 플레이스홀더 구현`, `Live2D 런타임 구현`, `Live2D 에셋 제작 도구 준비`, `키리코 원화 확보`, `PSD Cubism 임포트 검증`, `키리코 Cubism 리깅 완료`, `키리코 모델 런타임 통합 완료`. 뒤의 다섯 단계는 앞의 성공 여부를 근거로 자동 완료 처리하면 안 된다.
 
@@ -635,7 +643,6 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 - 고퀄리티 2D 캐릭터의 본질은 **리깅 가능한 파츠 원화와 사람의 품질 검수**다. 이미지 한 장을 자동 분리해 PSD를 만드는 것만으로 곧바로 충분한 Live2D 모델이 되지는 않는다.
 - 최종 키리코 모델을 개인적으로만 사용하더라도 입력 자산의 출처/사용 조건을 확인한다. 공개 배포/수익화는 별도 IP/SDK/샘플 라이선스 검토를 반드시 거친다.
 - **완전 무인 제작을 약속하지 않는다.** 정상 도구와 입력을 준비한 상태에서 최대한 자동화하고, 막힌 단계는 정확한 원인과 재개 절차를 남긴다.
-
 
 ## 16. 제공된 키리코 기준 이미지 기반 Live2D 파츠 명세서 v1
 
@@ -656,13 +663,13 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 - Companion 앱 1차 통합은 상반신 기준으로도 충분하다.
 - 전신은 장식물, 코트/하카마형 전면 장식, 다리, 신발 등 변형 포인트가 많아 일정과 난도가 높다.
 - 따라서 Claude Code는 우선 다음을 만족하는 상반신 모델을 목표로 한다.
-  - 눈 깜빡임
-  - 입 열림/닫힘 및 간단한 입모양
-  - 얼굴 각도 X/Y
-  - 시선 추적
-  - 감정 표정 5종 이상
-  - 머리/앞머리/장식 흔들림
-  - 어깨/상체의 미세한 호흡 움직임
+    - 눈 깜빡임
+    - 입 열림/닫힘 및 간단한 입모양
+    - 얼굴 각도 X/Y
+    - 시선 추적
+    - 감정 표정 5종 이상
+    - 머리/앞머리/장식 흔들림
+    - 어깨/상체의 미세한 호흡 움직임
 
 ### 16.3 상반신 우선 범위 정의
 
@@ -677,14 +684,14 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 #### A. 머리/얼굴 기본 파츠
 
 1. `Head_Base`
-   - 얼굴 피부, 기본 윤곽.
-   - 눈/눈썹/입/머리카락과 분리.
+    - 얼굴 피부, 기본 윤곽.
+    - 눈/눈썹/입/머리카락과 분리.
 2. `Face_Shadow`
-   - 얼굴 그림자 보정용 별도 레이어.
+    - 얼굴 그림자 보정용 별도 레이어.
 3. `Ear_Left`, `Ear_Right` (실제 귀 노출 시 분리, 보이지 않으면 생략)
 4. `Neck`
 5. `Torso_Upper_Base`
-   - 상의 흰색 기본 몸통.
+    - 상의 흰색 기본 몸통.
 6. `Shoulder_Left`, `Shoulder_Right`
 
 #### B. 머리카락 파츠
@@ -704,6 +711,7 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 12. `Hair_Bangs_Shadow`
 
 설명:
+
 - 본 기준 이미지에서 뒷머리가 충분히 보이지 않으므로 `Hair_Back_*`는 **복원 제작 대상**이다.
 - 머리카락 흔들림은 앞머리/옆머리/상단 머리 포인트를 개별 물리 파츠로 잡는다.
 
@@ -717,6 +725,7 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 6. `Mask_Detail_Decal`
 
 설명:
+
 - 붉은 여우 가면은 키리코 정체성 핵심 파츠이므로 얼굴과 독립시킨다.
 - 머리 회전 시 가면과 머리카락 간 깊이 관계를 유지해야 한다.
 
@@ -752,6 +761,7 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 8. `Cheek_Right_Blush`
 
 설명:
+
 - 1차 버전은 입 모양 A/I/U/E/O까지 가지 않아도 되며, `closed / slight open / smile / open talk` 정도의 최소 4상태를 권장한다.
 
 #### G. 상의/몸통 의상 파츠
@@ -771,6 +781,7 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 13. `Waist_Hanging_Orbs`
 
 설명:
+
 - 허리 구슬 띠와 매듭은 미세 흔들림에 매우 유리한 포인트다.
 - 상반신 모델에서도 허리 장식 일부를 포함하면 캐릭터성이 크게 살아난다.
 
@@ -789,6 +800,7 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 9. `Glove_Right`
 
 설명:
+
 - 본 기준 이미지의 왼손은 세운 검지와 부적이 핵심 포즈이므로, 1차는 통합 파츠로 두는 것이 효율적이다.
 - 완전한 손가락 리깅은 불필요하다.
 
@@ -828,6 +840,7 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 7. 상체 회전에 필요한 반대편 옷 주름 정보
 
 복원 원칙:
+
 - 원본 캐릭터의 인상 유지 우선
 - 복원 부위는 "자연스러운 연결"이 목적이며, 원작 완벽 재현을 주장하지 않음
 - 복원 후에는 평면 정면 일러스트 기준으로 재정렬한다.
@@ -845,6 +858,7 @@ models/exported/<model-id>/              # Cubism에서 출력했을 때만
 7. `concerned` — 걱정/위로용 표정
 
 추가 권장:
+
 - `teasing`
 - `embarrassed`
 - `wink`
@@ -903,6 +917,7 @@ Kiriko_UpperBody/
 ```
 
 레이어 규칙:
+
 - 영문 이름만 사용
 - 공백 대신 `_`
 - 좌우는 `_L`, `_R` 접미사 사용
@@ -951,7 +966,7 @@ Kirikomodo 프로젝트의 제공된 키리코 기준 이미지를 분석하여 
   5) docs/model-production-status.md
 - 앱은 실제 Live2D 모델 없이도 플레이스홀더 렌더러로 동작해야 하며, 나중에 실제 모델로 교체 가능해야 한다.
 - 실제 이미지 분리나 복원 작업은 가능 범위까지만 자동화하고, 수동 검수 또는 외부 제작이 필요한 부분은 완료로 처리하지 말 것.
-- 커밋은 기능 단위로 나누고, 각 커밋 메시지는 한국어로 작성할 것.
+- 기능 하나가 완료될 때마다 **테스트 없이 즉시 자동 로컬 커밋**하고, 각 커밋 메시지는 한국어로 작성할 것. 모든 검사는 전체 구현 후 Phase 5에서 일괄 실행할 것.
 ```
 
 ### 16.12 산출물 요구사항
@@ -992,3 +1007,103 @@ Kirikomodo 프로젝트의 제공된 키리코 기준 이미지를 분석하여 
 - 최종 리깅 자산은 별도 2D 파츠 원화로 제작한다.
 - 1차는 상반신 모델로 빠르게 성공 경험을 만든다.
 - 앱 개발과 모델 제작 도구 개발은 병렬로 진행한다.
+
+---
+
+## 17. **[v1.5 개정] 기능별 자동 로컬 커밋 + 최종 일괄 테스트 규칙 (필수)**
+
+### 17.1 핵심 원칙
+
+Claude Code는 **기능 하나를 구현할 때마다 해당 기능의 변경만 자동 로컬 Git 커밋**한다. 사용자에게 커밋 승인을 반복 요청하지 않는다.
+
+그러나 **각 기능마다 테스트·타입 검사·lint·빌드를 반복 실행하지 않는다.** 앱 기능·도구·설정·UI 등 구현 가능한 전체 범위를 먼저 작성하고, 그 후 **Phase 5에서 테스트·수정·재검증을 일괄 수행**한다.
+
+- 기능 커밋의 상태는 `IMPLEMENTED_UNTESTED`(**구현됨, 테스트 전**)으로 기록한다.
+- 커밋이 됐다는 이유만으로 `TEST_PASSED`나 수용 기준 통과로 표시하지 않는다.
+- 기능별 커밋과 전체 테스트를 위한 최종 검증·수정 커밋은 모두 현 작업 브랜치에 남긴다.
+- 브랜치 생성·전환·병합·리베이스·원격 푸시는 별도 요청이 없는 한 수행하지 않는다.
+
+### 17.2 기능 커밋 단위
+
+한 커밋은 독립된 기능 하나를 담는 것을 원칙으로 한다.
+
+**커밋 예시**
+
+- `feat: 투명 캐릭터 창 구현`
+- `feat: 시스템 트레이 메뉴 추가`
+- `feat: 캐릭터 드래그와 위치 복원 구현`
+- `feat: 플레이스홀더 눈 깜빡임 추가`
+- `feat: 방해 금지 시간대의 선제 대화 차단`
+- `feat: Live2D 파츠 검사 도구 추가`
+- `fix: 다중 모니터 위치 복원 오류 수정` (최종 검사 후 수정 커밋)
+
+`전체 구현`, `작업 중` 등의 불명확한 묶음 커밋을 피한다. 큰 기능은 합리적으로 나누되, 작업 중간의 깨진 상태를 의도적으로 기능 완성이라고 명명하지 않는다. **빌드·실동작 검증은 최종 단계로 미루므로 기능 커밋도 아직 검증 전일 수 있다.**
+
+### 17.3 구현 중 반복할 Git 절차 (테스트 없음)
+
+1. 작업 전에 현재 브랜치, HEAD, `git status --short`를 확인하고 사용자 변경사항을 파악한다.
+2. TODO에서 독립 기능 하나를 선정해 코드를 구현한다. 필요한 테스트 코드도 작성할 수 있지만 **실행하지 않는다**.
+3. `git diff`, `git status --short`로 의도하지 않은 변경, 비밀정보, 불필요한 대용량 파일, 권리 미확인 에셋을 확인한다. 이는 **변경 범위 확인**이지 테스트가 아니다.
+4. `git add -- <해당 기능 파일 경로>`처럼 관련 파일만 선택적으로 스테이징한다.
+5. `git diff --cached --stat`, `git diff --cached`, `git status --short`로 기존 사용자 staged 파일이 섞이지 않았는지 검사한다.
+6. **테스트/타입 검사/lint/빌드를 실행하지 않고** `git commit -m "<type>: <한국어 기능 설명>"`으로 커밋한다. 단, 저장소가 이미 강제하는 커밋 훅은 무단 우회하지 않는다.
+7. 진행 문서에 기능명, 커밋 메시지, `IMPLEMENTED_UNTESTED` 상태, 관련 파일을 기록한다. 실제 해시는 커밋 후 확인해 후속 보고 또는 최종 보고에 반영한다.
+8. 다음 기능으로 넘어간다. 아직 발견되지 않은 오류 때문에 임의로 테스트 단계를 앞당기지 않는다.
+
+### 17.4 안전 규칙
+
+- **금지:** `git add .`, `git add -A`, `git commit -am` 등 사용자 변경사항을 무분별하게 포함하는 명령.
+- **금지:** `git reset --hard`, `git clean -fd`, 강제 체크아웃/리베이스, 사용자의 코드 덮어쓰기, 무단 stash, `git push --force`.
+- **금지:** 승인 없는 GitHub Push, Release 게시, 원격 브랜치 생성, 자동 배포.
+- **금지:** API 키, 비밀정보, 개인정보 DB, 사용자 대화 데이터, 배포권이 확인되지 않은 키리코 원화/PSD/Cubism 파일 커밋.
+- `node_modules`, 임시 파일, 캐시, 빌드/설치 산출물은 기본 Git 추적 제외.
+- 기존 staged 또는 미커밋 사용자 변경이 동일 파일에 섞여 안전하게 분리할 수 없다면 해당 커밋을 보류하고 다른 독립 작업을 진행한다.
+- Git 작성자 설정을 임의로 지어내지 않는다. 훅 실패는 보고하고 우회하지 않는다. 훅이 자동으로 테스트를 실행한다면, **훅이 요구하는 검사는 예외**이며 훅 구성 자체를 허락 없이 변경하거나 `--no-verify`로 건너뛰지 않는다.
+
+### 17.5 전체 구현이 끝난 뒤 실행하는 최종 QA 사이클
+
+1. 구현 가능한 모든 기능과 도구를 작성했는지 명세서 TODO를 확인한다. 에셋/Editor 미확보로 수행할 수 없는 항목은 별도로 관리한다.
+2. **이때 처음으로** `npm run typecheck`, `npm run lint`, `npm run test`, `npm run build` 및 필요한 에셋 검사·E2E를 일괄 실행한다. 도구별 실제 명령은 프로젝트 설정에 맞춘다.
+3. 실패 결과를 하나의 QA 목록에 정리한다. 오류 내용, 재현 방법, 영향 범위를 기록한다.
+4. 오류를 개별적으로 수정하고 **수정 단위마다 자동 로컬 커밋**한다. 이 단계에서는 관련 테스트를 실행하면서 수정해도 된다.
+5. 모든 수정 이후 전체 테스트/타입 검사/lint/빌드/E2E를 재실행해 회귀 여부를 확인한다.
+6. 최종 Windows 설치 패키지를 생성하여 가능한 범위의 설치·실행·제거를 확인하고 결과를 기록한다.
+7. `docs/implementation-progress.md`에 기능별 `TEST_PASSED`/`TEST_FAILED`/`NOT_TESTED`/`BLOCKED_INPUT`/`REQUIRES_EDITOR` 상태 및 커밋·실행 로그를 기록한다. 검증하지 않은 부분은 완료 판정하지 않는다.
+
+### 17.6 진행 문서 규칙
+
+- 기능 구현 시점에는 커밋 내용과 **미검증 상태**만 기록한다.
+- 테스트 실행 명령, 통과·실패 여부는 Phase 5에서 **실제 실행된 뒤에만** 적는다.
+- 커밋 해시는 `git log`로 얻고, 커밋 이전에 추측하지 않는다. 해시만 적기 위한 문서 전용 커밋을 남발하지 않는다.
+- 커밋 실패는 `BLOCKED_COMMIT`으로 기록하고 임의의 다른 기능 커밋에 끼워 넣지 않는다.
+- 사용자가 요청한 기능별 자동 커밋을 유지하면서도, 반복 테스트 수행으로 시간을 낭비하지 않는 것이 핵심이다.
+
+### 17.7 Claude Code 최초 실행 프롬프트에 추가할 필수 규칙
+
+다음 지침은 기존 14절 및 과거 스타터 프롬프트의 **기능별 테스트 선행 요구보다 우선한다.**
+
+```text
+[기능별 자동 커밋 + 전체 구현 후 테스트 — 필수]
+
+- 기능 하나 구현 시마다 이번 기능 파일만 선택적으로 스테이징하고 한국어 Conventional Commit으로 자동 로컬 커밋할 것.
+- 기능 커밋 전에 npm test, typecheck, lint, build 등을 일일이 실행하지 말 것.
+- 각 커밋은 IMPLEMENTED_UNTESTED(구현 완료, 미검증)으로 기록하고 다음 기능으로 진행할 것.
+- 모든 기능 구현 후 Phase 5에서 전체 테스트·타입 검사·lint·빌드를 한꺼번에 실행할 것.
+- 최종 검사에서 발견한 오류를 수정하고, 수정마다 독립 로컬 커밋을 남길 것.
+- 수정 완료 후 전체 검사를 다시 진행하고 통과/실패/미검증을 정확히 보고할 것.
+- Git 기존 사용자 변경사항, 스테이징 내용, 브랜치, 민감정보는 보호할 것.
+- 승인 없는 브랜치 전환/푸시는 하지 말 것. 기존 커밋 훅은 무단 우회하지 말 것.
+- 기능별 커밋은 별도 승인을 기다리지 않고 계속 진행할 것.
+```
+
+### 17.8 추가 수용 기준
+
+- `G-01` 구현한 각 독립 기능별 로컬 Git 커밋이 존재한다.
+- `G-02` 커밋 메시지가 `feat:`, `fix:`, `refactor:`, `test:`, `docs:` 등 접두사와 한국어 기능 설명을 사용한다.
+- `G-03` 기능 구현 기간에는 테스트·타입 검사·lint·빌드가 반복 실행되지 않는다(강제 커밋 훅 예외). 최종 검증에서만 수행한다.
+- `G-04` 최종 QA 실패 항목이 수정되고 관련 수정 사항이 개별 커밋에 남는다.
+- `G-05` 수정 후 전체 테스트·타입 검사·lint·빌드·가능한 E2E를 재실행하여 결과를 남긴다.
+- `G-06` 기존 사용자 변경사항 보호, 무단 푸시·브랜치 전환 금지 원칙이 유지된다.
+- `G-07` 최종 보고에 기능별 커밋 목록과 테스트 성공/실패/미실행 상태가 포함된다.
+
+**최종 원칙: `기능 구현 → 자동 로컬 커밋 → 다음 기능` 반복, 전체 구현 후 `일괄 테스트 → 오류 수정·커밋 → 전체 재검증`**.
