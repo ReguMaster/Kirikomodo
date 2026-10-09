@@ -8,7 +8,8 @@ import { openSettingsWindow } from './windows/settings'
 
 let tray: Tray | null = null
 
-function buildMenu(): Menu {
+// 트레이와 캐릭터 우클릭 컨텍스트 메뉴(FR-002-7)가 같은 항목을 쓴다.
+export function buildAppMenu(): Menu {
   const visible = getCharacterWindow()?.isVisible() ?? false
   return Menu.buildFromTemplate([
     { label: visible ? '캐릭터 숨기기' : '캐릭터 표시', click: toggleCharacterWindow },
@@ -27,7 +28,7 @@ function buildMenu(): Menu {
 }
 
 function refreshTrayMenu(): void {
-  tray?.setContextMenu(buildMenu())
+  tray?.setContextMenu(buildAppMenu())
 }
 
 // 트레이는 상주 앱의 유일한 완전 종료 경로다 (FR-001-4/5). 아이콘 로드 실패 시에도 메뉴는 유지한다.

@@ -4,11 +4,13 @@ import { IPC, type AppInfo } from '@shared/ipc'
 import { SettingsPatchSchema } from '@shared/settings'
 import { getSettings, onSettingsChanged, updateSettings } from '../services/settings'
 import { log } from '../services/logger'
-import { getCharacterWindow, setCharacterIgnoreMouse } from '../windows/character'
+import { beginCharacterDrag, dragCharacter, getCharacterWindow, setCharacterIgnoreMouse } from '../windows/character'
+import { buildAppMenu } from '../tray'
 import { openChatWindow } from '../windows/chat'
 import { openSettingsWindow } from '../windows/settings'
 
 const OpenWindowSchema = z.enum(['chat', 'settings'])
+const DragSchema = z.object({ dx: z.number().finite(), dy: z.number().finite() })
 
 // 앱이 만든 BrowserWindow에서 온 메시지만 받는다 (IPC sender 검증, 명세 9절).
 function isTrusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
@@ -17,6 +19,11 @@ function isTrusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
   const url = event.senderFrame?.url ?? ''
   const devUrl = process.env.ELECTRON_RENDERER_URL
   return url.startsWith('file://') || (!!devUrl && url.startsWith(devUrl))
+}
+
+function isFromCharacter(event: IpcMainEvent): boolean {
+  const win = getCharacterWindow()
+  return !!win && BrowserWindow.fromWebContents(event.sender) === win
 }
 
 function handle<T>(channel: string, schema: z.ZodType<T> | null, fn: (event: IpcMainInvokeEvent, arg: T) => unknown): void {
@@ -63,7 +70,17 @@ export function registerIpc(): void {
   })
   on(IPC.windowCloseSelf, null, (event) => BrowserWindow.fromWebContents(event.sender)?.close())
   on(IPC.windowIgnoreMouse, z.boolean(), (event, ignore) => {
-    if (BrowserWindow.fromWebContents(event.sender) === getCharacterWindow()) setCharacterIgnoreMouse(ignore)
+    if (isFromCharacter(event)) setCharacterIgnoreMouse(ignore)
+  })
+  on(IPC.windowDragStart, null, (event) => {
+    if (isFromCharacter(event)) beginCharacterDrag()
+  })
+  on(IPC.windowDrag, DragSchema, (event, { dx, dy }) => {
+    if (isFromCharacter(event)) dragCharacter(dx, dy)
+  })
+  on(IPC.windowContextMenu, null, (event) => {
+    const win = getCharacterWindow()
+    if (win && isFromCharacter(event)) buildAppMenu().popup({ window: win })
   })
   on(IPC.appQuit, null, () => app.quit())
 
