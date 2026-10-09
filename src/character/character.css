@@ -15,3 +15,8 @@ body {
   inset: 0;
   transform-origin: center;
 }
+
+.placeholder-character {
+  display: block;
+  transform-origin: center bottom;
+}
