@@ -7,10 +7,14 @@ type Level = 'info' | 'warn' | 'error'
 let logDir: string | null = null
 let queue: Promise<void> = Promise.resolve()
 
-function logFilePath(): string {
+export function logsDir(): string {
   if (!logDir) logDir = join(app.getPath('userData'), 'logs')
+  return logDir
+}
+
+function logFilePath(): string {
   const day = new Date().toISOString().slice(0, 10)
-  return join(logDir, `kirikomodo-${day}.log`)
+  return join(logsDir(), `kirikomodo-${day}.log`)
 }
 
 function write(level: Level, scope: string, message: string, extra?: unknown): void {
@@ -20,7 +24,7 @@ function write(level: Level, scope: string, message: string, extra?: unknown): v
   if (!app.isReady()) return
   queue = queue
     .then(async () => {
-      await mkdir(logDir ?? join(app.getPath('userData'), 'logs'), { recursive: true })
+      await mkdir(logsDir(), { recursive: true })
       await appendFile(logFilePath(), line, 'utf8')
     })
     .catch(() => undefined)

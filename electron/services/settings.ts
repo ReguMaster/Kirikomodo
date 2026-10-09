@@ -44,6 +44,15 @@ export async function updateSettings(patch: SettingsPatch): Promise<Settings> {
   return current
 }
 
+// 창 위치는 사용자가 따로 초기화하므로 유지하지 않고 함께 기본값으로 돌린다.
+export function resetSettings(): Settings {
+  current = DEFAULT_SETTINGS
+  for (const listener of listeners) listener(current)
+  scheduleSave()
+  log.info('settings', 'reset to defaults')
+  return current
+}
+
 export function onSettingsChanged(listener: Listener): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)

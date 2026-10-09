@@ -37,6 +37,14 @@ const api: KirikomodoApi = {
     ipcRenderer.on(IPC.chatWindowState, handler)
     return () => ipcRenderer.removeListener(IPC.chatWindowState, handler)
   },
+  onChatCleared: (listener) => {
+    const handler = (): void => listener()
+    ipcRenderer.on(IPC.chatCleared, handler)
+    return () => ipcRenderer.removeListener(IPC.chatCleared, handler)
+  },
+  exportChat: () => ipcRenderer.invoke(IPC.chatExport),
+  resetSettings: () => ipcRenderer.invoke(IPC.settingsReset),
+  openLogsFolder: () => ipcRenderer.send(IPC.appOpenLogs),
   quitApp: () => ipcRenderer.send(IPC.appQuit)
 }
 

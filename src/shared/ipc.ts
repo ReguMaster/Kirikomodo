@@ -18,6 +18,10 @@ export const IPC = {
   chatMessage: 'chat:message',
   chatProactive: 'chat:proactive',
   chatWindowState: 'chat:window-state',
+  chatCleared: 'chat:cleared',
+  chatExport: 'chat:export',
+  settingsReset: 'settings:reset',
+  appOpenLogs: 'app:open-logs',
   appQuit: 'app:quit',
   appInfo: 'app:info'
 } as const
@@ -61,5 +65,11 @@ export interface KirikomodoApi {
   requestProactive(): void
   /** 캐릭터 창 전용. 채팅창 포커스 여부(true면 CHATTING). */
   onChatWindowState(listener: (focused: boolean) => void): () => void
+  /** 기록 삭제가 어느 창에서 일어나든 모든 창이 비운다. */
+  onChatCleared(listener: () => void): () => void
+  /** 저장 대화상자를 띄워 전체 기록을 JSON으로 내보낸다. 취소하면 null. */
+  exportChat(): Promise<string | null>
+  resetSettings(): Promise<Settings>
+  openLogsFolder(): void
   quitApp(): void
 }

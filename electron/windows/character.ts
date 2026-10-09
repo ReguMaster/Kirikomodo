@@ -84,6 +84,12 @@ function applySettings(settings: Settings): void {
   if (bounds.width !== size.width || bounds.height !== size.height) {
     target.setBounds(clampToWorkArea({ ...bounds, ...size }))
   }
+  // 설정의 x/y가 null이면 '위치 초기화' 요청. 생성 직후 저장해 두므로 그 외에는 null이 아니다.
+  if (settings.window.x === null && settings.window.y === null) {
+    const home = defaultPosition(size)
+    target.setPosition(home.x, home.y)
+    schedulePositionSave()
+  }
 }
 
 // 드래그는 renderer가 pointerdown 시점 대비 누적 델타를 보내고, 메인이 시작 위치에 더해 작업 영역 안으로 고정한다 (FR-002-6).
@@ -168,6 +174,7 @@ export function createCharacterWindow(settings: Settings): BrowserWindow {
   if (settings.window.alwaysOnTop) win.setAlwaysOnTop(true, 'floating')
   win.once('ready-to-show', () => win?.show())
   win.on('moved', schedulePositionSave)
+  if (settings.window.x === null || settings.window.y === null) schedulePositionSave()
   win.on('show', () => {
     startCursorTracking()
     notifyVisibility(true)

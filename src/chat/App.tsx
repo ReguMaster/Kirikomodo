@@ -26,17 +26,23 @@ export function App(): JSX.Element {
   // 구독을 먼저 걸고 기록을 받아 그 사이 도착한 메시지가 빠지지 않게 id로 합친다.
   useEffect(() => {
     const off = window.kirikomodo.onChatMessage((message) => setMessages((prev) => mergeById(prev, [message])))
+    const offCleared = window.kirikomodo.onChatCleared(() => setMessages([]))
     void window.kirikomodo.getChatHistory().then((history) => setMessages((prev) => mergeById(history, prev)))
-    return off
+    return () => {
+      off()
+      offCleared()
+    }
   }, [])
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight })
   }, [messages])
 
+  const enabled = settings.dialogue.scriptedEnabled
+
   const send = (raw: string): void => {
     const text = raw.trim()
-    if (!text) return
+    if (!text || !enabled) return
     setDraft('')
     setError(null)
     window.kirikomodo.sendChat(text).catch(() => setError('메시지를 보내지 못했어요. 다시 시도해 주세요.'))
@@ -52,7 +58,7 @@ export function App(): JSX.Element {
           type="button"
           className="chat-clear"
           disabled={messages.length === 0}
-          onClick={() => void window.kirikomodo.clearChat().then(() => setMessages([]))}
+          onClick={() => void window.kirikomodo.clearChat()}
         >
           기록 지우기
         </button>
@@ -71,9 +77,10 @@ export function App(): JSX.Element {
           ))
         )}
       </main>
+      {!enabled && <p className="chat-error">설정에서 스크립트 대화가 꺼져 있어요.</p>}
       <div className="chat-quick">
         {QUICK_REPLIES.map((q) => (
-          <button key={q} type="button" onClick={() => send(q)}>
+          <button key={q} type="button" disabled={!enabled} onClick={() => send(q)}>
             {q}
           </button>
         ))}
@@ -90,11 +97,12 @@ export function App(): JSX.Element {
           ref={inputRef}
           value={draft}
           maxLength={CHAT_MAX_INPUT_LENGTH}
+          disabled={!enabled}
           placeholder="메시지를 입력하세요"
           onChange={(e) => setDraft(e.target.value)}
           autoFocus
         />
-        <button type="submit" className="primary" disabled={!draft.trim()}>
+        <button type="submit" className="primary" disabled={!enabled || !draft.trim()}>
           보내기
         </button>
       </form>

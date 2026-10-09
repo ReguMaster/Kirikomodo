@@ -13,6 +13,7 @@ describe('SettingsSchema', () => {
     expect(parsed.window.scale).toBe(1.5)
     expect(parsed.window.opacity).toBe(1)
     expect(parsed.behavior.dailyProactiveLimit).toBe(3)
+    expect(parsed.dialogue.scriptedEnabled).toBe(true)
   })
 
   it('rejects out-of-range and malformed values', () => {

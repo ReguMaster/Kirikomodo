@@ -1,10 +1,11 @@
-import { BrowserWindow, app, ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
+import { BrowserWindow, app, ipcMain, shell, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import { z } from 'zod'
 import { IPC, type AppInfo } from '@shared/ipc'
 import { SettingsPatchSchema } from '@shared/settings'
 import { CHAT_MAX_INPUT_LENGTH } from '@shared/types'
-import { getSettings, onSettingsChanged, updateSettings } from '../services/settings'
-import { clearChat, getChatHistory, sendChat, speakProactive } from '../services/dialogue'
+import { getSettings, onSettingsChanged, resetSettings, updateSettings } from '../services/settings'
+import { clearChat, exportChat, getChatHistory, sendChat, speakProactive } from '../services/dialogue'
+import { logsDir } from '../services/logger'
 import { log } from '../services/logger'
 import { beginCharacterDrag, dragCharacter, getCharacterWindow, setCharacterIgnoreMouse } from '../windows/character'
 import { buildAppMenu } from '../tray'
@@ -56,6 +57,7 @@ function on<T>(channel: string, schema: z.ZodType<T> | null, fn: (event: IpcMain
 export function registerIpc(): void {
   handle(IPC.settingsGet, null, () => getSettings())
   handle(IPC.settingsUpdate, SettingsPatchSchema, (_event, patch) => updateSettings(patch))
+  handle(IPC.settingsReset, null, () => resetSettings())
   handle(
     IPC.appInfo,
     null,
@@ -88,9 +90,11 @@ export function registerIpc(): void {
   handle(IPC.chatSend, ChatTextSchema, (_event, text) => sendChat(text))
   handle(IPC.chatHistory, null, () => getChatHistory())
   handle(IPC.chatClear, null, () => clearChat())
+  handle(IPC.chatExport, null, (event) => exportChat(BrowserWindow.fromWebContents(event.sender)))
   on(IPC.chatProactive, null, (event) => {
     if (isFromCharacter(event)) speakProactive()
   })
+  on(IPC.appOpenLogs, null, () => void shell.openPath(logsDir()))
   on(IPC.appQuit, null, () => app.quit())
 
   onSettingsChanged((settings) => {

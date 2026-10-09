@@ -1,5 +1,6 @@
-import { app, session } from 'electron'
+import { app, session, type WebContents } from 'electron'
 import { registerIpc } from './ipc'
+import { closeDialogueStore, initDialogueStore } from './services/dialogue'
 import { syncAutoStart } from './services/autostart'
 import { log } from './services/logger'
 import { flushSettings, getSettings, loadSettings, onSettingsChanged } from './services/settings'
@@ -23,6 +24,16 @@ function applyProductionCsp(): void {
   })
 }
 
+// 렌더러가 죽으면(OOM·GPU 등) 로그를 남기고 한 번 다시 불러온다. 사용자가 직접 닫은 경우(clean-exit)는 제외.
+function recoverRendererCrash(contents: WebContents): void {
+  contents.on('render-process-gone', (_event, details) => {
+    if (details.reason === 'clean-exit') return
+    log.error('renderer', `process gone (${details.reason}), reloading`, { url: contents.getURL() })
+    if (!contents.isDestroyed()) contents.reload()
+  })
+  contents.on('unresponsive', () => log.warn('renderer', 'unresponsive', { url: contents.getURL() }))
+}
+
 function showCharacter(): void {
   const win = getCharacterWindow()
   if (win) win.show()
@@ -33,7 +44,9 @@ async function bootstrap(): Promise<void> {
   log.info('app', `Kirikomodo ${app.getVersion()} starting`)
   const settings = await loadSettings()
   applyProductionCsp()
+  initDialogueStore()
   registerIpc()
+  app.on('web-contents-created', (_event, contents) => recoverRendererCrash(contents))
   createCharacterWindow(settings)
   watchCharacterEnvironment()
   createTray()
@@ -59,6 +72,7 @@ app.on('window-all-closed', () => undefined)
 app.on('before-quit', () => {
   log.info('app', 'quitting')
   destroyTray()
+  closeDialogueStore()
   void flushSettings()
 })
 

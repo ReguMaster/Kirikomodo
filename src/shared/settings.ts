@@ -42,6 +42,10 @@ const DisplaySchema = z.object({
   textScale: z.number().min(0.8).max(1.5).default(1)
 })
 
+const DialogueSchema = z.object({
+  scriptedEnabled: z.boolean().default(true)
+})
+
 const GeneralSchema = z.object({
   autoStart: z.boolean().default(false),
   language: z.literal('ko').default('ko')
@@ -58,6 +62,7 @@ export const SettingsSchema = z.object({
   character: CharacterSchema.prefault({}),
   behavior: BehaviorSchema.prefault({}),
   display: DisplaySchema.prefault({}),
+  dialogue: DialogueSchema.prefault({}),
   privacy: PrivacySchema.prefault({})
 })
 
@@ -76,6 +81,7 @@ export const SettingsPatchSchema = z
         timeOfDay: BehaviorSchema.shape.timeOfDay.unwrap().partial().optional()
       }),
     display: DisplaySchema.partial(),
+    dialogue: DialogueSchema.partial(),
     privacy: PrivacySchema.partial()
   })
   .partial()
