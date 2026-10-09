@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 const timeString = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+const hour = z.number().int().min(0).max(23)
 
 const WindowSchema = z.object({
   alwaysOnTop: z.boolean().default(true),
@@ -27,7 +28,11 @@ const BehaviorSchema = z.object({
       end: timeString.default('08:00')
     })
     .prefault({}),
-  doNotDisturb: z.boolean().default(false)
+  doNotDisturb: z.boolean().default(false),
+  // 각 시간대가 시작하는 시. FR-005 프리셋: 아침 06, 낮 11, 저녁 18, 밤 23
+  timeOfDay: z
+    .object({ morning: hour.default(6), day: hour.default(11), evening: hour.default(18), night: hour.default(23) })
+    .prefault({})
 })
 
 const DisplaySchema = z.object({
@@ -64,9 +69,12 @@ export const SettingsPatchSchema = z
     general: GeneralSchema.partial(),
     window: WindowSchema.partial(),
     character: CharacterSchema.partial(),
-    behavior: BehaviorSchema.omit({ quietHours: true })
+    behavior: BehaviorSchema.omit({ quietHours: true, timeOfDay: true })
       .partial()
-      .extend({ quietHours: BehaviorSchema.shape.quietHours.unwrap().partial().optional() }),
+      .extend({
+        quietHours: BehaviorSchema.shape.quietHours.unwrap().partial().optional(),
+        timeOfDay: BehaviorSchema.shape.timeOfDay.unwrap().partial().optional()
+      }),
     display: DisplaySchema.partial(),
     privacy: PrivacySchema.partial()
   })
@@ -77,14 +85,19 @@ export type SettingsPatch = z.infer<typeof SettingsPatchSchema>
 
 export const DEFAULT_SETTINGS: Settings = SettingsSchema.parse({})
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 export function applySettingsPatch(current: Settings, patch: SettingsPatch): Settings {
   const merged: Record<string, unknown> = { ...current }
   for (const [section, value] of Object.entries(patch)) {
     if (!value) continue
     const base = current[section as keyof Settings] as Record<string, unknown>
-    const next: Record<string, unknown> = { ...base, ...value }
-    if (section === 'behavior' && (value as SettingsPatch['behavior'])?.quietHours) {
-      next.quietHours = { ...(base.quietHours as object), ...(value as SettingsPatch['behavior'])!.quietHours }
+    const next: Record<string, unknown> = { ...base }
+    for (const [key, field] of Object.entries(value)) {
+      const prev = base[key]
+      next[key] = isPlainObject(prev) && isPlainObject(field) ? { ...prev, ...field } : field
     }
     merged[section] = next
   }

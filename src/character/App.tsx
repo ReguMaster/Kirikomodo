@@ -2,7 +2,8 @@ import { useEffect, useRef, type JSX } from 'react'
 import { applyTextScale, useSettingsStore } from '@/app/settingsStore'
 import { createCharacterRenderer, type ManagedRenderer } from './CharacterRenderer'
 import { MotionController } from './MotionController'
-import type { Emotion, HitArea, Motion } from '@shared/types'
+import { BehaviorEngine, type IdleActionPayload } from '@/core/BehaviorEngine'
+import type { CompanionEvent, Emotion, HitArea, Motion } from '@shared/types'
 import './character.css'
 
 interface PreviewDetail {
@@ -27,6 +28,7 @@ export function App(): JSX.Element {
   const settings = useSettingsStore((s) => s.settings)
   const stageRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<ManagedRenderer | null>(null)
+  const engineRef = useRef<BehaviorEngine | null>(null)
 
   useEffect(() => applyTextScale(settings), [settings])
 
@@ -37,6 +39,20 @@ export function App(): JSX.Element {
     rendererRef.current = renderer
     void renderer.mount(stage)
     const motions = new MotionController(renderer)
+
+    // 행동 엔진은 이벤트만 발행한다. 여기서 IDLE_ACTION을 모션/감정으로 옮기고, 선제 대사는 대화 기능이 붙으면 처리한다.
+    const onCompanionEvent = (event: CompanionEvent): void => {
+      if (event.type !== 'IDLE_ACTION') return
+      const { motion, emotion } = event.payload as IdleActionPayload
+      if (emotion) motions.express(emotion)
+      void motions.play(motion, 'autonomous')
+    }
+    const engine = new BehaviorEngine(onCompanionEvent)
+    engineRef.current = engine
+    engine.configure(useSettingsStore.getState().settings.behavior)
+    const onVisibility = (): void => engine.setState(document.hidden ? 'HIDDEN' : 'IDLE')
+    onVisibility()
+    engine.start()
 
     let ignoring: boolean | null = null
     const setIgnore = (ignore: boolean): void => {
@@ -54,6 +70,7 @@ export function App(): JSX.Element {
       if (!area) return
       press = { x: event.screenX, y: event.screenY, area }
       dragging = false
+      engine.setState('INTERACTING')
       stage.setPointerCapture(event.pointerId)
     }
     const onPointerMove = (event: PointerEvent): void => {
@@ -73,10 +90,12 @@ export function App(): JSX.Element {
       if (!press) return
       const { area } = press
       press = null
+      engine.setState('IDLE')
       if (dragging) {
         dragging = false
         return
       }
+      engine.noteUserInteraction()
       motions.express(TAP_EMOTION[area])
       void motions.play('reactTap', 'manual')
     }
@@ -106,8 +125,12 @@ export function App(): JSX.Element {
     document.addEventListener('contextmenu', onContextMenu)
     document.addEventListener('wheel', onWheel, { passive: false })
     document.addEventListener('kirikomodo:preview', onPreview)
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      engine.stop()
+      engineRef.current = null
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('pointermove', onPointerMove)
       document.removeEventListener('pointerup', onPointerUp)
@@ -125,6 +148,10 @@ export function App(): JSX.Element {
   useEffect(() => {
     rendererRef.current?.setOptions({ fpsLimit: settings.display.fpsLimit, reduceMotion: settings.display.reduceMotion })
   }, [settings.display.fpsLimit, settings.display.reduceMotion])
+
+  useEffect(() => {
+    engineRef.current?.configure(settings.behavior)
+  }, [settings.behavior])
 
   return (
     <div className="character-root">
