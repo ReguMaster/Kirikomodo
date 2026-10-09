@@ -1,9 +1,9 @@
-import { useEffect, useRef, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX } from 'react'
 import { applyTextScale, useSettingsStore } from '@/app/settingsStore'
 import { createCharacterRenderer, type ManagedRenderer } from './CharacterRenderer'
 import { MotionController } from './MotionController'
 import { BehaviorEngine, type IdleActionPayload } from '@/core/BehaviorEngine'
-import type { CompanionEvent, Emotion, HitArea, Motion } from '@shared/types'
+import type { ChatMessage, CompanionEvent, Emotion, HitArea, Motion } from '@shared/types'
 import './character.css'
 
 interface PreviewDetail {
@@ -17,6 +17,11 @@ const SCALE_MIN = 0.5
 const SCALE_MAX = 2
 const TAP_EMOTION: Record<NonNullable<HitArea>, Emotion> = { head: 'happy', body: 'playful' }
 
+interface Bubble {
+  id: string
+  text: string
+}
+
 function adjustScale(direction: 1 | -1): void {
   const { settings, update } = useSettingsStore.getState()
   const scale = Math.round(Math.min(SCALE_MAX, Math.max(SCALE_MIN, settings.window.scale + direction * SCALE_STEP)) * 10) / 10
@@ -29,8 +34,15 @@ export function App(): JSX.Element {
   const stageRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<ManagedRenderer | null>(null)
   const engineRef = useRef<BehaviorEngine | null>(null)
+  const [bubble, setBubble] = useState<Bubble | null>(null)
 
   useEffect(() => applyTextScale(settings), [settings])
+
+  useEffect(() => {
+    if (!bubble) return
+    const timer = setTimeout(() => setBubble(null), useSettingsStore.getState().settings.display.speechBubbleSeconds * 1000)
+    return () => clearTimeout(timer)
+  }, [bubble])
 
   useEffect(() => {
     const stage = stageRef.current
@@ -40,8 +52,12 @@ export function App(): JSX.Element {
     void renderer.mount(stage)
     const motions = new MotionController(renderer)
 
-    // 행동 엔진은 이벤트만 발행한다. 여기서 IDLE_ACTION을 모션/감정으로 옮기고, 선제 대사는 대화 기능이 붙으면 처리한다.
+    // 행동 엔진은 이벤트만 발행한다. IDLE_ACTION은 모션/감정으로, PROACTIVE_DIALOGUE는 메인의 대화 허브로 넘긴다.
     const onCompanionEvent = (event: CompanionEvent): void => {
+      if (event.type === 'PROACTIVE_DIALOGUE') {
+        window.kirikomodo.requestProactive()
+        return
+      }
       if (event.type !== 'IDLE_ACTION') return
       const { motion, emotion } = event.payload as IdleActionPayload
       if (emotion) motions.express(emotion)
@@ -50,9 +66,29 @@ export function App(): JSX.Element {
     const engine = new BehaviorEngine(onCompanionEvent)
     engineRef.current = engine
     engine.configure(useSettingsStore.getState().settings.behavior)
-    const onVisibility = (): void => engine.setState(document.hidden ? 'HIDDEN' : 'IDLE')
-    onVisibility()
+    // 상위 상태 우선순위: 숨김 > 드래그/클릭 중 > 채팅창 포커스 > 대기
+    let pressing = false
+    let chatting = false
+    const syncState = (): void =>
+      engine.setState(document.hidden ? 'HIDDEN' : pressing ? 'INTERACTING' : chatting ? 'CHATTING' : 'IDLE')
+    syncState()
     engine.start()
+
+    // 캐릭터 응답은 말풍선·감정·대화 모션으로, 사용자 발화는 상호작용으로 기록한다.
+    const offChat = window.kirikomodo.onChatMessage((message: ChatMessage) => {
+      if (message.role === 'user') {
+        engine.noteUserInteraction()
+        return
+      }
+      const holdMs = useSettingsStore.getState().settings.display.speechBubbleSeconds * 1000
+      motions.express(message.emotion ?? 'neutral', holdMs)
+      if (message.motion) void motions.play(message.motion, 'dialogue')
+      setBubble({ id: message.id, text: message.text })
+    })
+    const offChatState = window.kirikomodo.onChatWindowState((focused) => {
+      chatting = focused
+      syncState()
+    })
 
     let ignoring: boolean | null = null
     const setIgnore = (ignore: boolean): void => {
@@ -70,7 +106,8 @@ export function App(): JSX.Element {
       if (!area) return
       press = { x: event.screenX, y: event.screenY, area }
       dragging = false
-      engine.setState('INTERACTING')
+      pressing = true
+      syncState()
       stage.setPointerCapture(event.pointerId)
     }
     const onPointerMove = (event: PointerEvent): void => {
@@ -90,7 +127,8 @@ export function App(): JSX.Element {
       if (!press) return
       const { area } = press
       press = null
-      engine.setState('IDLE')
+      pressing = false
+      syncState()
       if (dragging) {
         dragging = false
         return
@@ -125,10 +163,12 @@ export function App(): JSX.Element {
     document.addEventListener('contextmenu', onContextMenu)
     document.addEventListener('wheel', onWheel, { passive: false })
     document.addEventListener('kirikomodo:preview', onPreview)
-    document.addEventListener('visibilitychange', onVisibility)
+    document.addEventListener('visibilitychange', syncState)
 
     return () => {
-      document.removeEventListener('visibilitychange', onVisibility)
+      document.removeEventListener('visibilitychange', syncState)
+      offChat()
+      offChatState()
       engine.stop()
       engineRef.current = null
       document.removeEventListener('pointerdown', onPointerDown)
@@ -155,6 +195,11 @@ export function App(): JSX.Element {
 
   return (
     <div className="character-root">
+      {bubble && (
+        <div className="speech-bubble" role="status">
+          {bubble.text}
+        </div>
+      )}
       <div
         id="character-stage"
         ref={stageRef}

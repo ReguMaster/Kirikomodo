@@ -2,7 +2,9 @@ import { BrowserWindow, app, ipcMain, type IpcMainEvent, type IpcMainInvokeEvent
 import { z } from 'zod'
 import { IPC, type AppInfo } from '@shared/ipc'
 import { SettingsPatchSchema } from '@shared/settings'
+import { CHAT_MAX_INPUT_LENGTH } from '@shared/types'
 import { getSettings, onSettingsChanged, updateSettings } from '../services/settings'
+import { clearChat, getChatHistory, sendChat, speakProactive } from '../services/dialogue'
 import { log } from '../services/logger'
 import { beginCharacterDrag, dragCharacter, getCharacterWindow, setCharacterIgnoreMouse } from '../windows/character'
 import { buildAppMenu } from '../tray'
@@ -11,6 +13,7 @@ import { openSettingsWindow } from '../windows/settings'
 
 const OpenWindowSchema = z.enum(['chat', 'settings'])
 const DragSchema = z.object({ dx: z.number().finite(), dy: z.number().finite() })
+const ChatTextSchema = z.string().trim().min(1).max(CHAT_MAX_INPUT_LENGTH)
 
 // 앱이 만든 BrowserWindow에서 온 메시지만 받는다 (IPC sender 검증, 명세 9절).
 function isTrusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
@@ -81,6 +84,12 @@ export function registerIpc(): void {
   on(IPC.windowContextMenu, null, (event) => {
     const win = getCharacterWindow()
     if (win && isFromCharacter(event)) buildAppMenu().popup({ window: win })
+  })
+  handle(IPC.chatSend, ChatTextSchema, (_event, text) => sendChat(text))
+  handle(IPC.chatHistory, null, () => getChatHistory())
+  handle(IPC.chatClear, null, () => clearChat())
+  on(IPC.chatProactive, null, (event) => {
+    if (isFromCharacter(event)) speakProactive()
   })
   on(IPC.appQuit, null, () => app.quit())
 

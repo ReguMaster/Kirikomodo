@@ -65,4 +65,20 @@ export interface CompanionEvent {
   payload?: unknown
 }
 
+export type ChatRole = 'user' | 'character'
+
+// FR-006: 모든 메시지는 id·발화자·텍스트·시각·source와 연결된 감정·모션을 남긴다.
+export interface ChatMessage {
+  id: string
+  role: ChatRole
+  text: string
+  source: 'user' | 'script'
+  intent?: string
+  emotion?: Emotion
+  motion?: Motion
+  createdAt: number
+}
+
+export const CHAT_MAX_INPUT_LENGTH = 1000
+
 export type AppState = 'BOOTING' | 'READY' | 'IDLE' | 'INTERACTING' | 'CHATTING' | 'RESTING' | 'HIDDEN' | 'SHUTDOWN'

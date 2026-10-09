@@ -1,4 +1,5 @@
 import type { Settings, SettingsPatch } from './settings'
+import type { ChatMessage } from './types'
 
 export const IPC = {
   settingsGet: 'settings:get',
@@ -11,6 +12,12 @@ export const IPC = {
   windowDrag: 'window:drag',
   windowContextMenu: 'window:context-menu',
   cursorMoved: 'cursor:moved',
+  chatSend: 'chat:send',
+  chatHistory: 'chat:history',
+  chatClear: 'chat:clear',
+  chatMessage: 'chat:message',
+  chatProactive: 'chat:proactive',
+  chatWindowState: 'chat:window-state',
   appQuit: 'app:quit',
   appInfo: 'app:info'
 } as const
@@ -45,5 +52,14 @@ export interface KirikomodoApi {
   showContextMenu(): void
   /** 캐릭터 창 전용. 메인이 전역 커서 위치를 -1..1 시선 좌표로 바꿔 보낸다. */
   onCursorMoved(listener: (look: LookTarget) => void): () => void
+  /** 사용자 메시지를 보내면 메인이 스크립트 응답을 만들고, 두 메시지를 모든 창에 chat:message로 푸시한다. */
+  sendChat(text: string): Promise<ChatMessage>
+  getChatHistory(): Promise<ChatMessage[]>
+  clearChat(): Promise<void>
+  onChatMessage(listener: (message: ChatMessage) => void): () => void
+  /** 캐릭터 창 전용. 행동 엔진의 PROACTIVE_DIALOGUE를 메인에 넘겨 선제 대사를 받는다. */
+  requestProactive(): void
+  /** 캐릭터 창 전용. 채팅창 포커스 여부(true면 CHATTING). */
+  onChatWindowState(listener: (focused: boolean) => void): () => void
   quitApp(): void
 }

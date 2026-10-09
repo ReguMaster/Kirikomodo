@@ -13,7 +13,7 @@
     "esModuleInterop": true,
     "composite": true,
     "baseUrl": ".",
-    "paths": { "@shared/*": ["src/shared/*"] }
+    "paths": { "@shared/*": ["src/shared/*"], "@core/*": ["src/core/*"] }
   },
-  "include": ["electron/**/*.ts", "src/shared/**/*.ts", "electron.vite.config.ts"]
+  "include": ["electron/**/*.ts", "src/shared/**/*.ts", "src/core/**/*.ts", "electron.vite.config.ts"]
 }
