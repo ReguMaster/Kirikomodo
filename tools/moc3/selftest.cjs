@@ -33,4 +33,22 @@ if (fs.existsSync(sample)) {
 } else {
   console.log('샘플 폴더 없음 — Haru 검증은 건너뜀')
 }
+// 생성기: 기하 도형 모델을 처음부터 만들어 Core 가 열고, 각 파라미터가 의도한 드로어블만 움직이는지 본다
+const demo = path.join(tmp, 'demo.moc3')
+const gen = spawnSync('python', [path.join(__dirname, 'gen.py'), 'demo', demo], { encoding: 'utf8' })
+assert.strictEqual(gen.status, 0, gen.stdout + gen.stderr)
+const effect = (...sets) => {
+  const r = inspect(demo, '--json', ...sets)
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr)
+  const moved = JSON.parse(r.stdout.slice(r.stdout.indexOf('{'))).setEffect.movedDrawables
+  return Object.fromEntries(moved.map((m) => [m.id, [m.dx, m.dy, m.dOpacity]]))
+}
+assert.deepStrictEqual(effect('ParamMoveX=1'), { MeshCenter: [0.2, 0, 0], MeshArm: [0.2, 0, 0], MeshHead: [0.2, 0, 0], MeshHand: [0.2, 0, 0] }, '루트 워프가 자손 전부를 옮겨야 해요')
+assert.deepStrictEqual(effect('ParamOpacity=0'), { MeshCenter: [0, 0, -1] }, '아트메시 불투명도 키폼')
+assert.deepStrictEqual(effect('ParamMeshY=1', 'ParamMix=1'), { MeshFree: [0.1, -0.3, 0] }, '2-파라미터 키폼 조합(저장 y 아래 + → Core 는 위 +)')
+assert.deepStrictEqual(effect('ParamHeadY=1'), { MeshHead: [0, -0.1, 0] }, '워프 안의 워프')
+assert.deepStrictEqual(Object.keys(effect('ParamAngle=30')), ['MeshArm', 'MeshHand'], '회전 디포머와 그 안의 회전')
+assert.deepStrictEqual(Object.keys(effect('ParamHand=30')), ['MeshHand'], '중첩 회전은 자기 자식만')
+console.log('gen.py demo: Core VALID, 7 parameters move the intended drawables')
+
 console.log('moc3 inspector selftest passed')

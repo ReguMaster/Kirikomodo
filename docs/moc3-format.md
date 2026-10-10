@@ -45,6 +45,14 @@ Haru 는 version 1 이라 섹션 101개(표 [0]~[100]). 전체 섹션 목록·�
 ## Core 교차 검증 결과 (Haru)
 `tools/moc3/inspect-core.cjs --json` 과 `tools/moc3/moc3.py json` 을 비교해 다음이 전부 일치했다: 아트메시 id·vertexCounts·positionIndexCounts·textureNos·마스크 수·parentPart·drawableFlags, 파라미터 id·min·max·default·키 수, 파츠 id·parent. UV 총 길이 = Σ정점×2, 인덱스 총 길이 = Σ인덱스 수. 재기록한 파일은 Core 가 VALID 로 열고 바이트가 원본과 동일하다.
 
+## 좌표·키폼 규약 (생성기 `tools/moc3/gen.py` 로 Core 에 직접 확인, 2026-10-10)
+- **저장 좌표는 전부 화면 방향(y 아래 +)**. Core 는 `vertexPositions` 를 보고할 때 y 를 뒤집어 위쪽 + 로 준다. 픽셀 → 저장 모델 좌표는 `x=(px-originX)/ppu, y=(py-originY)/ppu`.
+- 루트 객체(부모 디포머 -1)의 키폼 위치는 모델 공간. **워프 디포머의 자식**은 격자 로컬 (u,v) 0..1 (u 열 방향, v 행 방향, 행 0 = 격자 positions 의 첫 행) 을 쌍선형 보간. 격자 positions 는 행 바깥·열 안쪽 순서, 정점 수 = (rows+1)×(columns+1). 워프 안의 워프도 같은 규칙(자식 격자 좌표가 부모 격자 로컬 0..1).
+- **회전 디포머의 자식**은 회전 로컬 좌표. 부모 좌표 = origin + R(angle)·(scale × local). origin 은 부모 공간(루트면 모델 공간, 워프 아래면 격자 로컬 0..1), scale 은 로컬 단위 → 부모 단위 배율. Haru 의 0.000417(=1/2400) 은 워프 아래 회전의 자식 좌표를 "픽셀 단위" 로 두고 격자 로컬로 바꾸는 값이었다(확정). 회전 안의 회전은 scale 1 이면 같은 로컬 단위. 각도는 도 단위, 화면 기준 시계 방향 + (Core 출력 y-up 기준으로는 시계 방향).
+- **키폼 순서**: 바인딩 파라미터 목록(parameterBindingIndices 순서)에서 **첫 파라미터가 가장 빠르게 변한다**(keys 순서대로). 2-파라미터 조합을 Core 로 확인.
+- 파라미터당 parameterBinding 1개, 키는 그 파라미터를 쓰는 모든 객체가 공유. keyformBinding[0] 은 바인딩 0개(고정 객체·파츠용), 나머지는 파라미터 조합별로 공유해도 된다.
+- drawOrderGroup 1개에 아트메시 전부(types 0, indices 0..n-1, selfIndices -1), max/min drawOrders 는 실제 범위를 넉넉히 감싸면 된다(Core 가 거부하지 않음).
+- Core 가 처음부터 생성한 V3.00 파일을 거부한 경우는 없었다(101개 섹션 전부 존재·개수 표 일치·64 B 정렬만 지키면 열림).
+
 ## 아직 확인하지 않은 것
-- 회전 디포머 키폼의 originX/Y·scales 단위(Haru 값: origin 0.62/0.70, scale 0.0004 — ppu 2400 기준 1/2400 ≈ 0.000417 이라 "픽셀 단위 스케일" 로 보임, 미확정).
-- Core 가 거부하는 조건의 전체 목록. 생성기(다음 작업)에서 최소 모델로 시행착오하며 채운다.
+- isReflectX/Y, 마스크(drawableMasks)·블렌드 모드·글루의 생성 파일 동작(생성기에 필드는 있으나 Core 로 아직 안 돌려 봄).

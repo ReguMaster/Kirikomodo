@@ -16,6 +16,7 @@
 | `tools/moc3/dump-header.py` | 헤더·섹션 오프셋 표·개수 표·캔버스 값 덤프 |
 | `tools/moc3/selftest.cjs` (`npm run test:moc3`) | 판정기 자체검증. 0 바이트 파일 거부는 항상, 샘플 폴더가 있으면 Haru 통과 + `moc3.py` 라운드트립(바이트 동일·Core VALID) |
 | `tools/moc3/moc3.py` | moc3 파서·writer(stdlib). `dump` / `roundtrip` / `json`. 생성기의 기반 |
+| `tools/moc3/gen.py` | **moc3 생성기.** `Builder` 로 파츠·파라미터·워프/회전 디포머·아트메시·키폼을 선언하면 V3.00 moc3 를 쓴다. `python tools/moc3/gen.py demo out.moc3` 가 기하 도형 검증 모델. 좌표·키폼 규약은 `docs/moc3-format.md` "좌표·키폼 규약" |
 | `tests/e2e/live2d.cjs` (`npm run test:e2e:live2d`) | 모델을 실제 가져오기 경로로 앱에 불러 그려지는지 확인. 생성한 모델의 최종 검증에 쓴다 |
 
 샘플 준비 (완료됨)
@@ -52,8 +53,8 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 ## 권장 순서
 1. ~~섹션 해독~~ 완료 → `docs/moc3-format.md`.
 2. ~~라운드트립~~ 완료 → `tools/moc3/moc3.py`, `npm run test:moc3`.
-3. **최소 모델**: 파츠 1·아트메시 1(쿼드)·파라미터 1 의 moc3 를 처음부터 생성 → Core 가 열고 렌더되는지 확인.
-4. **파라미터 반응**: keyform 으로 불투명도·정점 이동 → `inspect-core ParamX=값` 으로 움직임 확인. 이어서 워프 디포머(머리 흔들기·호흡), 눈 깜빡임·입 열기.
+3. ~~최소 모델~~ 완료 → `tools/moc3/gen.py` (Core VALID).
+4. ~~파라미터 반응~~ 완료 → 정점 이동·불투명도·워프(중첩 포함)·회전(중첩 포함)·2-파라미터 조합을 `npm run test:moc3` 가 Core 로 검사한다.
 5. **키리코 적용**: 파츠 PNG 로 메시·UV·텍스처 아틀라스 생성, `.model3.json` 작성, 앱 가져오기 + `test:e2e:live2d` 방식으로 육안 확인(캡처를 직접 볼 것).
 6. 상태 문서(`docs/model-production-status.md`, `docs/implementation-progress.md`)를 사실대로 갱신.
 
@@ -76,4 +77,5 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - **애니메이션도 귀여워야 한다.** 눈 깜빡임·입 열림·시선·고개 기울임·호흡에 더해 표정(앱 감정 7종)·모션(앱 모션 10종)을 모두 만들고, 머리카락·여우 가면 장식·부적·옷자락 흔들림은 physics3 로 구현한다. 현재 앱 로더는 physics3 를 지원하지 않으므로(`src/character/Live2DRenderer.ts`) 로더도 확장해야 한다.
 
 ## 상태
-- 포맷 해독·라운드트립 writer 까지 완료(2026-10-10). **처음부터 생성하는 생성기(권장 순서 3·4)는 착수 전**이다. 생성기는 `moc3.py` 의 `Moc3` 를 채워 `to_bytes()` 하면 되고, 키폼 위치 블록 64 B 정렬·바인딩 체인 규칙은 `docs/moc3-format.md` 를 따른다.
+- 포맷 해독·라운드트립 writer·**처음부터 생성하는 생성기**까지 완료(2026-10-10). `gen.py` 의 `Builder` 로 만든 기하 도형 모델을 Core 가 VALID 로 열고 7개 파라미터가 의도한 드로어블만 움직인다(`npm run test:moc3`). 아직 앱에서 렌더(합격 기준 3)는 안 봤다 — 텍스처가 없는 도형 모델이라 키리코 파츠가 준비되면 본다.
+- 다음은 TASKS 4(원본 정리·표정 제작) → 5(레이어 계약·파츠 PNG·아틀라스) → 6(키리코 moc3 조립: `Builder` 에 파츠별 메시·UV·디포머·키폼을 넣는다). 생성기에서 아직 Core 로 안 본 것: 마스크·블렌드 모드·reflect·글루.
