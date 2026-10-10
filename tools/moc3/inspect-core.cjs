@@ -74,8 +74,8 @@ if (sets.length) {
   report.setEffect = {
     set: Object.fromEntries(sets),
     movedDrawables: moved
-      .map((m, i) => ({ id: D.ids[i], dx: round(m.x0 - base[i].x0), dy: round(m.y0 - base[i].y0), dOpacity: round(m.opacity - base[i].opacity) }))
-      .filter((m) => m.dx || m.dy || m.dOpacity)
+      .map((m, i) => ({ id: D.ids[i], dx: round(m.x0 - base[i].x0), dy: round(m.y0 - base[i].y0), dx1: round(m.x1 - base[i].x1), dy1: round(m.y1 - base[i].y1), dOpacity: round(m.opacity - base[i].opacity) }))
+      .filter((m) => m.dx || m.dy || m.dx1 || m.dy1 || m.dOpacity)
   }
 }
 

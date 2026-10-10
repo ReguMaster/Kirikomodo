@@ -57,6 +57,7 @@ def region_mask(shape, spec: dict) -> np.ndarray:
 MIN_GROW_SEED = 1500  # 이보다 작은 조각(최근접 배정 잔여물)은 복원 연장의 씨앗으로 쓰지 않는다
 MIN_HOLE_FILL_AREA = 60000  # 이보다 큰 1차 마스크만 구멍을 메운다(작은 파츠는 그대로)
 MAX_HOLE = 4000  # 메우는 구멍의 최대 크기(눈처럼 의도된 큰 빈 영역은 남긴다)
+MOUTH_GAP = 3  # 입 변형에서 가장 큰 덩어리와 이 거리(px) 안에 닿지 않는 조각은 버린다(옷깃·볼 노이즈가 입 가까이 떠 있기도 해서 좁게)
 MIN_SPECK = 400  # 이보다 작은 고립 조각은 라벨을 빼앗아 이웃 큰 덩어리에 붙인다
 FEATHER = 20  # 복원 영역 바깥 경계 알파 페더 px
 COLOR_ERODE = 9  # 복원 색 출처에서 경계 혼색 픽셀을 제외할 침식 커널
@@ -294,6 +295,10 @@ class Cutter:
         if n > 2:  # 인페인팅이 옷깃에 남긴 작은 노이즈 조각은 변형이 아니다. 가장 큰 덩어리는 항상 유지
             keep = [c for c in range(1, n) if st[c, cv2.CC_STAT_AREA] >= MIN_SPECK or st[c, cv2.CC_STAT_AREA] == st[1:, cv2.CC_STAT_AREA].max()]
             m = np.isin(cc, keep)
+            if e['region'] == 'mouth':  # 입 변형은 한 덩어리(이빨·혀 하이라이트는 입 안쪽): 입에서 떨어진 옷깃·볼 노이즈 조각은 버린다
+                main = cc == 1 + int(np.argmax(st[1:, cv2.CC_STAT_AREA]))
+                near = cv2.dilate(main.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * MOUTH_GAP + 1,) * 2)).astype(bool)
+                m &= np.isin(cc, np.unique(cc[near & m]))
         out = np.zeros_like(src)
         out[m] = src[m]
         return out

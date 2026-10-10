@@ -179,7 +179,7 @@ add("Brow_L", "06_Face/Brows", 112, True, "L", True,
     {"draw": {"arc": [[1350, 775], [1420, 768], [1480, 790]], "width": 7}}, "앞머리 아래 가는 호. 직접 그림")
 
 MOUTH_BOX = [1245, 925, 1370, 990]  # 옷깃 빨간 선(x>1370, y>990)이 들어오지 않게 입선 주변만
-MOUTH_EXPR_BOX = [1230, 912, 1385, 1030]  # 열린 입·혀(playful x≤1380, y≤1021)는 입선보다 훨씬 크다. 옷깃 인페인팅 노이즈(x≥1385)는 제외
+MOUTH_EXPR_BOX = [1224, 892, 1400, 1034]  # 열린 입·혀(playful 입꼬리 x≈1386, sleepy 윗선 y≈905)가 상자 경계에 닿으면 평평하게 잘린다. 옷깃 인페인팅 노이즈는 작은 조각 제거(400px)로 거른다
 add("Mouth_Line", "06_Face/Mouth", 115, True, None, False, {"dark": {"box": MOUTH_BOX, "max": 190, "red": 30}}, "닫힌 입(미소선)")
 for i, (v, name) in enumerate([("Open", "mouth_open"), ("O", "mouth_o"), ("Smile", "happy"), ("Grin", "playful"),
                                ("Curious", "curious"), ("Annoyed", "annoyed"), ("Sleepy", "sleepy"), ("Frown", "concerned")]):

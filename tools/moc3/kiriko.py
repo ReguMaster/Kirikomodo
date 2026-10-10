@@ -56,11 +56,14 @@ SWAY = {
     'Ribbon_Waist': ('ParamRibbon', 15, 'top'), 'Bell_Chest': ('ParamRibbon', 12, 'top'),
     'Sleeve_R': ('ParamSleeve', 18, 'top'), 'Sleeve_L': ('ParamSleeve', 18, 'top'),
 }
-# 소매 스윙(ParamArmR/L): 어깨 피벗에서 바깥(+)으로 돌린다. 키 값 → 각도(°). 소매 끝이 캔버스 밖으로 잘리지 않는 한계(≈6.5°)에 맞춤.
+# 소매 펄럭임(ParamArmR/L): 소매 바깥쪽·아래쪽이 바깥(+)으로 벌어진다. 키 값 → 바깥 아래 끝(밑단 바깥 모서리)의 이동 px.
+# 소매와 Apron 은 같은 큰 겉옷을 분리 때 임의의 직선으로 나눈 것이라, 소매를 통째로 회전·이동하면 그 경계를 따라 옷이 찢어져 보인다.
+# 그래서 안쪽 가장자리(Apron 과 만나는 쪽)는 고정하고 바깥으로 갈수록(u^1.4)·아래로 갈수록(t^1.2) 더 벌린다.
 ARM_KEYS = [-1, -0.5, 0, 0.5, 1]
-ARM_DEG = [-4, -2, 0, 3.5, 7]
-ARM_PIVOT = {'Sleeve_R': (1000, 1340), 'Sleeve_L': (1640, 1340)}   # 어깨. R 은 화면 왼쪽(바깥 = -x), L 은 오른쪽
-ARM_TOP, ARM_LEN = 1300, 1706                                       # 소매 위끝 y, 길이. 아래로 갈수록 더 휜다
+ARM_PX = [-30, -15, 0, 50, 90]
+ARM_INNER = {'Sleeve_R': 1249, 'Sleeve_L': 1400}    # 소매 안쪽 가장자리 x(몸 중심 쪽)
+ARM_OUTER = {'Sleeve_R': 225, 'Sleeve_L': 2358}     # 소매 바깥 가장자리 x
+ARM_TOP, ARM_LEN = 1300, 1706                       # 소매 위끝 y, 길이
 # 깊이 시차(px/° 계수). 레이어끼리 상대적으로 밀리면 그 사이로 이음새·구멍이 드러나므로 작게 둔다(처음 0.35~0.7 이었을 때 눈·입이 피부 위에서 미끄러졌다)
 PARALLAX = {'Face_Base': 0.08, 'Eye': 0.18, 'Brow': 0.16, 'Mouth': 0.15, 'Neck': 0.0, 'Hair_Knot': -0.03, 'Ear': -0.04, 'Mask_Fox': -0.03}
 
@@ -137,7 +140,7 @@ class Kiriko:
         t = (BODY_PIVOT[1] - y) / self.H            # 아래 0 → 위 1
         x += v['ParamBodyAngleX'] * 3.0 * t
         y -= v['ParamBreath'] * 10 * t + v['ParamBodyAngleY'] * 1.5 * t
-        return rot(x, y, *BODY_PIVOT, v['ParamBodyAngleZ'] * 0.5)
+        return rot(x, y, *BODY_PIVOT, v['ParamBodyAngleZ'] * 0.5 * t)   # 하단 절단선은 고정(안 그러면 비스듬히 떠서 흰 쐐기가 생김)
 
     def head_px(self, v, x, y, depth=0.0):
         ax, ay, az = v['ParamAngleX'], v['ParamAngleY'], v['ParamAngleZ']
@@ -163,7 +166,7 @@ class Kiriko:
     # ---- 아트메시 ----
     def mesh_for(self, lid: str, w: int, h: int):
         if lid.startswith('Sleeve_'):
-            return 3, 12
+            return 5, 12
         if lid in SWAY or lid in HAIR or lid == 'Tail':
             return 3, 8
         if lid.startswith('Ear'):
@@ -181,11 +184,11 @@ class Kiriko:
             pid, amp, _ = SWAY[lid]
             t = (y - y0) / h
             x += amp * v[pid] * t * t
-        if lid in ARM_PIVOT:
-            px, py = ARM_PIVOT[lid]
-            deg = lerp_key(v['ParamArm' + lid[-1]], ARM_KEYS, ARM_DEG) * (1 if lid.endswith('R') else -1)
-            bend = 0.35 + 0.65 * min(1.0, max(0.0, (y - ARM_TOP) / ARM_LEN))   # 어깨 쪽은 덜, 끝단은 더 휜다
-            x, y = rot(x, y, px, py, deg * bend)
+        if lid in ARM_INNER:
+            inner, outer = ARM_INNER[lid], ARM_OUTER[lid]
+            u = min(1.0, max(0.0, (x - inner) / (outer - inner)))     # 안쪽 0 → 바깥 1
+            t = min(1.0, max(0.0, (y - ARM_TOP) / ARM_LEN))           # 어깨 0 → 밑단 1
+            x += (1 if outer > inner else -1) * lerp_key(v['ParamArm' + lid[-1]], ARM_KEYS, ARM_PX) * u ** 1.4 * t ** 1.2
         if lid == 'Tail':
             px, py = x0 + w - 40, y0 + h - 120
             d = math.hypot(x - px, y - py) / math.hypot(w, h)
@@ -244,7 +247,7 @@ class Kiriko:
             ps += list(HAIR[lid][:2])
         if lid in SWAY:
             ps.append(SWAY[lid][0])
-        if lid in ARM_PIVOT:
+        if lid in ARM_INNER:
             ps.append('ParamArm' + lid[-1])
         if lid == 'Tail':
             ps.append('ParamTail')

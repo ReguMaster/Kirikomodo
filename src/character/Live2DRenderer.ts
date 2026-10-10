@@ -97,7 +97,7 @@ async function fetchModelFile(modelId: string, rel: string, as: 'json' | 'buffer
 const finiteOr = (v: number | undefined, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
 
 type DebugWindow = Window & {
-  __kmdLive2D?: { param: (id: string) => number | undefined; physics: boolean; blinking: () => boolean; pin: (values: Record<string, number>) => void }
+  __kmdLive2D?: { param: (id: string) => number | undefined; physics: boolean; blinking: () => boolean; pin: (values: Record<string, number>) => void; only: (ids: string[] | null) => void }
 }
 
 // Cubism Core 를 직접 다루는 최소 WebGL 렌더러. 포즈·모션 사운드는 지원하지 않는다.
@@ -127,6 +127,7 @@ export class Live2DRenderer implements CharacterRenderer {
   private raf = 0
   private lastFrame = 0
   private nextBlinkAt = 0
+  private solo: Set<string> | null = null // e2e: 지정한 드로어블만 그린다(null 이면 전부)
   private pinned: Record<string, number> = {} // e2e 가 임의 자세를 고정해 찍는 용도(빈 객체면 무시)
   private blinkStart = -1
   private resizeObserver: ResizeObserver | null = null
@@ -185,7 +186,8 @@ export class Live2DRenderer implements CharacterRenderer {
         param: this.paramAccess.get,
         physics: this.physics !== null,
         blinking: () => this.blinkStart >= 0,
-        pin: (values) => (this.pinned = values)
+        pin: (values) => (this.pinned = values),
+        only: (ids) => (this.solo = ids ? new Set(ids) : null)
       }
     } catch (err) {
       await this.dispose()
@@ -556,6 +558,7 @@ export class Live2DRenderer implements CharacterRenderer {
     const order = Array.from({ length: d.count }, (_, i) => i).sort((a, b) => d.renderOrders[a] - d.renderOrders[b])
     for (const i of order) {
       if (!(d.dynamicFlags[i] & FLAG_VISIBLE) || d.opacities[i] <= 0) continue
+      if (this.solo && !this.solo.has(d.ids[i])) continue
       const masked = d.maskCounts[i] > 0
       if (masked) {
         // ponytail: 스텐실 하드 마스크. 공식 프레임워크의 소프트 마스크(오프스크린 알파)가 필요하면 교체
