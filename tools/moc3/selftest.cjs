@@ -23,6 +23,13 @@ if (fs.existsSync(sample)) {
   assert.deepStrictEqual([report.parts.length, report.drawables.length, report.parameters.length], [19, 84, 42])
   assert.ok(report.setEffect.movedDrawables.length > 0, 'ParamAngleX 가 드로어블을 움직여야 해요')
   console.log('haru: valid, 19 parts / 84 drawables / 42 parameters, ParamAngleX moves drawables')
+
+  const rewritten = path.join(tmp, 'haru-roundtrip.moc3')
+  const rt = spawnSync('python', [path.join(__dirname, 'moc3.py'), 'roundtrip', haru, rewritten], { encoding: 'utf8' })
+  assert.strictEqual(rt.status, 0, rt.stdout + rt.stderr)
+  assert.ok(fs.readFileSync(haru).equals(fs.readFileSync(rewritten)), '라운드트립 결과가 원본과 달라요')
+  assert.match(inspect(rewritten).stdout, /VALID/)
+  console.log('haru: moc3.py roundtrip byte-identical, Core VALID')
 } else {
   console.log('샘플 폴더 없음 — Haru 검증은 건너뜀')
 }
