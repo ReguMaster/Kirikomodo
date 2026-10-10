@@ -69,6 +69,13 @@ if (fs.existsSync(atlas)) {
   assert.deepStrictEqual(keff('ParamTail=1'), ['Tail'], '꼬리')
   assert.ok(keff('ParamBodyAngleX=10').includes('Torso'), '몸 기울기')
   console.log('kiriko.py: Core VALID, head/eye/mouth/tail/body parameters move the intended drawables')
+  const km3 = JSON.parse(fs.readFileSync(path.join(kdir, 'kiriko.model3.json'), 'utf8')).FileReferences
+  assert.strictEqual(Object.keys(km3.Motions).length, 10, '모션 10종')
+  assert.strictEqual(km3.Expressions.length, 7, '표정 7종')
+  for (const f of [...Object.values(km3.Motions).flat(), ...km3.Expressions].map((e) => e.File).concat('model-map.json')) {
+    assert.ok(fs.existsSync(path.join(kdir, f)), f)
+  }
+  console.log('kiriko_anim.py: 10 motions / 7 expressions / model-map.json written and registered')
 }
 
 console.log('moc3 inspector selftest passed')
