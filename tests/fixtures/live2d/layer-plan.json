@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "model": {
+    "id": "fixture-geo",
+    "name": "Fixture_Geo",
+    "scope": "upper_body"
+  },
+  "canvas": {
+    "width": 256,
+    "height": 320,
+    "colorMode": "RGB",
+    "bitDepth": 8,
+    "colorProfile": "sRGB"
+  },
+  "sideConvention": "character",
+  "naming": {
+    "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+    "sideSuffix": {
+      "left": "_L",
+      "right": "_R"
+    },
+    "excludeSuffixes": [
+      "_REF",
+      "_GUIDE",
+      "_TMP"
+    ],
+    "guidePrefix": "Guide"
+  },
+  "groups": [
+    "00_Guide",
+    "01_Head/Eyes",
+    "01_Head/Face",
+    "01_Head/HairBack",
+    "01_Head/HairFront",
+    "01_Head/Mouth",
+    "02_Body/Torso",
+    "03_Arms/Left",
+    "90_Shadow_Adjust"
+  ],
+  "layers": [
+    {
+      "id": "Guide_Center_GUIDE",
+      "group": "00_Guide",
+      "z": 0,
+      "required": false,
+      "side": null,
+      "restore": false,
+      "exportExcluded": true
+    },
+    {
+      "id": "Hair_Back",
+      "group": "01_Head/HairBack",
+      "z": 10,
+      "required": true,
+      "side": null,
+      "restore": false
+    },
+    {
+      "id": "Body",
+      "group": "02_Body/Torso",
+      "z": 20,
+      "required": true,
+      "side": null,
+      "restore": false
+    },
+    {
+      "id": "Head_Base",
+      "group": "01_Head/Face",
+      "z": 30,
+      "required": true,
+      "side": null,
+      "restore": false
+    },
+    {
+      "id": "Eye_L_White",
+      "group": "01_Head/Eyes",
+      "z": 40,
+      "required": true,
+      "side": "L",
+      "restore": false
+    },
+    {
+      "id": "Eye_R_White",
+      "group": "01_Head/Eyes",
+      "z": 41,
+      "required": true,
+      "side": "R",
+      "restore": false
+    },
+    {
+      "id": "Eye_L_Iris",
+      "group": "01_Head/Eyes",
+      "z": 42,
+      "required": true,
+      "side": "L",
+      "restore": false
+    },
+    {
+      "id": "Eye_R_Iris",
+      "group": "01_Head/Eyes",
+      "z": 43,
+      "required": true,
+      "side": "R",
+      "restore": false
+    },
+    {
+      "id": "Mouth_Line",
+      "group": "01_Head/Mouth",
+      "z": 50,
+      "required": true,
+      "side": null,
+      "restore": false
+    },
+    {
+      "id": "Hair_Front",
+      "group": "01_Head/HairFront",
+      "z": 60,
+      "required": true,
+      "side": null,
+      "restore": false
+    },
+    {
+      "id": "Arm_L",
+      "group": "03_Arms/Left",
+      "z": 70,
+      "required": false,
+      "side": "L",
+      "restore": false
+    },
+    {
+      "id": "Shadow_Adjust",
+      "group": "90_Shadow_Adjust",
+      "z": 80,
+      "required": false,
+      "side": null,
+      "restore": false
+    }
+  ]
+}

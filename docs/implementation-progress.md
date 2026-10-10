@@ -17,8 +17,8 @@
 | 5 | 애니메이션 + 모션 우선순위 | 1aa6876 | 검증 통과 (vitest) |
 | 6 | 행동 시스템 (시간대·조용한 시간·방해 금지·선제 발화 제한) | a92eeb0 | 검증 통과 (vitest) |
 | 7 | 규칙 기반 대화·말풍선·채팅 UI | 744f331 | 검증 통과 (vitest + 오프스크린) |
-| 8 | 설정 화면·SQLite 기록·JSON 내보내기·예외 복구 | (본 커밋) | 검증 통과 (vitest + 스모크 + 오프스크린) |
-| 9 | Live2D 파츠 분리·모델 제작 파이프라인 | – | 미구현 |
+| 8 | 설정 화면·SQLite 기록·JSON 내보내기·예외 복구 | 3fbcadb | 검증 통과 (vitest + 스모크 + 오프스크린) |
+| 9 | Live2D 파츠 분리·모델 제작 파이프라인 | (본 커밋) | 도구·문서 완료, 모델은 NEEDS_MANUAL_QA/REQUIRES_EDITOR (`docs/model-production-status.md`) |
 | 10 | Live2D Cubism 모델 로더 | – | 미구현 (Cubism Core는 외부 배포) |
 | 11 | 통합 테스트·타입 검사·빌드·오류 수정 | – | 미착수 |
 | 12 | Kirikomodo.exe 빌드 + 보고서 | – | 미착수 |
@@ -59,8 +59,13 @@
 - 검증: vitest 38개(DB 마이그레이션·재오픈·limit 정렬 포함), typecheck, build, 실앱 스모크(`kirikomodo.sqlite` 생성 로그), 오프스크린 설정 화면 조작(토글→`settings:update`, 내보내기→`chat:export`, FPS select).
 - 미구현: `user_profile` 테이블(사용처 없음), 하드웨어 가속 진단, 소리 끄기(음성 기능 없음), 언어 선택(한국어 고정), Live2D 모델 가져오기 UI(작업 10).
 
-### 9~10. Live2D — 미구현 / 외부 도구 필요
-- 파츠 분리 파이프라인(작업 9)은 `assets/reference/kiriko.png` 기준 Python 스크립트로 준비 예정. Cubism Editor 리깅은 `외부 도구 필요`.
+### 9. Live2D 파츠 분리·제작 파이프라인 — 도구 완료, 모델 미완성
+- `tools/live2d-authoring/` Python CLI 9종(계획 생성·원화 분석·색/ROI 초안 분리·파츠 검증·미리보기·pure-Python PSD 조립·model3.json 검증·파이프라인·픽스처). 사용법 `docs/live2d-authoring.md`.
+- 레이어 계약 `docs/live2d-layer-contract.json` + 76 레이어 계획(`assets/live2d-authoring/input/layer-plan.json`, 파츠 목록 `docs/live2d-kiriko-parts.md` 자동 생성).
+- 검증: `npm run test:authoring`(픽스처 기반 자체검증 5종 통과), `run_pipeline.py --build-id 2026-10-10-r6` 전체 상태 `NEEDS_MANUAL_QA`.
+- 미완: 완성 파츠 PNG 0/51, Cubism Editor 리깅·moc3 내보내기(`REQUIRES_EDITOR`, Editor 미설치), 배포 가능한 원화 없음(`docs/asset-rights.md`). 산출물 폴더 `assets/live2d-authoring/output/` 은 Git 무시.
+
+### 10. Live2D 로더 — 미구현 / 외부 도구 필요
 - Cubism Core(`live2dcubismcore.min.js`)는 npm 미배포 → 사용자가 공식 SDK에서 가져와야 함. 미존재 시 플레이스홀더 폴백.
 
 ### 11~12. 통합 검증·패키징 — 미착수

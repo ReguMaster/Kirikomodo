@@ -15,7 +15,8 @@
     "lint": "npm run typecheck",
     "test": "vitest run",
     "dist": "npm run build && electron-builder --win --config electron-builder.yml",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "test:authoring": "python tools/live2d-authoring/selftest.py"
   },
   "dependencies": {
     "zod": "^4.6.5",

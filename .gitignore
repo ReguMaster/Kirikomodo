@@ -51,3 +51,6 @@ assets/reference/private/
 
 # Autopilot
 autopilot/
+# Live2D 제작 파이프라인 산출물(비배포 원화 파생물)
+assets/live2d-authoring/output/*
+!assets/live2d-authoring/output/.gitkeep

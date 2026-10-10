@@ -1,0 +1,1091 @@
+{
+  "$schema": "../../../docs/live2d-layer-contract.json",
+  "version": 1,
+  "model": {
+    "id": "kiriko-upper-body",
+    "name": "Kiriko_UpperBody",
+    "scope": "upper_body"
+  },
+  "canvas": {
+    "width": 1024,
+    "height": 1400,
+    "colorMode": "RGB",
+    "bitDepth": 8,
+    "colorProfile": "sRGB"
+  },
+  "sideConvention": "character",
+  "naming": {
+    "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+    "sideSuffix": {
+      "left": "_L",
+      "right": "_R"
+    },
+    "excludeSuffixes": [
+      "_REF",
+      "_GUIDE",
+      "_TMP"
+    ],
+    "guidePrefix": "Guide"
+  },
+  "reference": {
+    "file": "../../reference/kiriko.png",
+    "upperBodyCrop": [
+      0,
+      0,
+      732,
+      1000
+    ],
+    "note": "732x2048 RGBA 전신 3D 렌더. 상반신 크롭은 머리 끝~허리 매듭·늘어진 구슬까지. 비주얼 레퍼런스이며 최종 리깅 PSD 원본이 아니다(명세 16.14)."
+  },
+  "groups": [
+    "00_Guide",
+    "01_Head/Brows",
+    "01_Head/Eyes",
+    "01_Head/Face",
+    "01_Head/HairBack",
+    "01_Head/HairFront",
+    "01_Head/Mask",
+    "01_Head/Mouth",
+    "02_Body/Clothes",
+    "02_Body/Neck",
+    "02_Body/Straps",
+    "02_Body/Torso",
+    "03_Arms/Left",
+    "03_Arms/Right",
+    "04_Accessories/Ofuda",
+    "04_Accessories/Waist",
+    "90_Shadow_Adjust"
+  ],
+  "layers": [
+    {
+      "id": "Guide_Center_GUIDE",
+      "group": "00_Guide",
+      "z": 0,
+      "required": false,
+      "side": null,
+      "restore": false,
+      "exportExcluded": true,
+      "note": "정중앙 세로선·눈높이 가이드. 최종 출력 제외"
+    },
+    {
+      "id": "Eye_L_BlinkGuide_GUIDE",
+      "group": "00_Guide",
+      "z": 1,
+      "required": false,
+      "side": "L",
+      "restore": false,
+      "exportExcluded": true
+    },
+    {
+      "id": "Eye_R_BlinkGuide_GUIDE",
+      "group": "00_Guide",
+      "z": 2,
+      "required": false,
+      "side": "R",
+      "restore": false,
+      "exportExcluded": true
+    },
+    {
+      "id": "Hair_Back_Center",
+      "group": "01_Head/HairBack",
+      "z": 10,
+      "required": true,
+      "side": null,
+      "restore": true,
+      "draft": {
+        "roi": [
+          200,
+          60,
+          440,
+          340
+        ],
+        "color": "hair"
+      },
+      "note": "기준 이미지에서 거의 보이지 않음. 복원 제작"
+    },
+    {
+      "id": "Hair_Back_L",
+      "group": "01_Head/HairBack",
+      "z": 11,
+      "required": true,
+      "side": "L",
+      "restore": true,
+      "note": "복원 제작"
+    },
+    {
+      "id": "Hair_Back_R",
+      "group": "01_Head/HairBack",
+      "z": 12,
+      "required": true,
+      "side": "R",
+      "restore": true,
+      "note": "복원 제작"
+    },
+    {
+      "id": "Headband_Back",
+      "group": "01_Head/Mask",
+      "z": 15,
+      "required": true,
+      "side": null,
+      "restore": true,
+      "note": "머리띠 뒷부분, 복원"
+    },
+    {
+      "id": "Neck",
+      "group": "02_Body/Neck",
+      "z": 20,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          270,
+          290,
+          360,
+          370
+        ],
+        "color": "skin"
+      }
+    },
+    {
+      "id": "Torso_Upper_Base",
+      "group": "02_Body/Torso",
+      "z": 22,
+      "required": true,
+      "side": null,
+      "restore": true,
+      "note": "옷 안쪽 몸통. 회전 시 노출 영역 복원"
+    },
+    {
+      "id": "Shoulder_L",
+      "group": "02_Body/Torso",
+      "z": 24,
+      "required": true,
+      "side": "L",
+      "restore": true,
+      "draft": {
+        "roi": [
+          400,
+          340,
+          560,
+          470
+        ],
+        "color": "white"
+      },
+      "note": "캐릭터 왼어깨(화면 오른쪽). 뒤로 돌아간 어깨, 정면 재해석"
+    },
+    {
+      "id": "Shoulder_R",
+      "group": "02_Body/Torso",
+      "z": 25,
+      "required": true,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          130,
+          330,
+          230,
+          440
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Cloth_Upper_White_Base",
+      "group": "02_Body/Clothes",
+      "z": 30,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          150,
+          330,
+          560,
+          640
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Cloth_Collar_Inner_Red",
+      "group": "02_Body/Clothes",
+      "z": 32,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          250,
+          350,
+          380,
+          430
+        ],
+        "color": "red"
+      }
+    },
+    {
+      "id": "Cloth_Chest_Logo",
+      "group": "02_Body/Clothes",
+      "z": 34,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          295,
+          410,
+          355,
+          465
+        ],
+        "color": "red"
+      }
+    },
+    {
+      "id": "Strap_L",
+      "group": "02_Body/Straps",
+      "z": 36,
+      "required": true,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          360,
+          350,
+          560,
+          600
+        ],
+        "color": "gray"
+      }
+    },
+    {
+      "id": "Strap_R",
+      "group": "02_Body/Straps",
+      "z": 37,
+      "required": true,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          160,
+          400,
+          300,
+          580
+        ],
+        "color": "gray"
+      }
+    },
+    {
+      "id": "Shoulder_Pad_L",
+      "group": "02_Body/Straps",
+      "z": 38,
+      "required": false,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          380,
+          340,
+          470,
+          420
+        ],
+        "color": "gray"
+      }
+    },
+    {
+      "id": "Shoulder_Pad_R",
+      "group": "02_Body/Straps",
+      "z": 39,
+      "required": false,
+      "side": "R",
+      "restore": false
+    },
+    {
+      "id": "Arm_Upper_L",
+      "group": "03_Arms/Left",
+      "z": 40,
+      "required": false,
+      "side": "L",
+      "restore": true,
+      "draft": {
+        "roi": [
+          500,
+          430,
+          620,
+          700
+        ],
+        "color": "skin"
+      },
+      "note": "캐릭터 왼팔(화면 오른쪽), 내린 팔. 크롭 하단에서 잘림 → 복원"
+    },
+    {
+      "id": "Arm_Lower_L",
+      "group": "03_Arms/Left",
+      "z": 41,
+      "required": false,
+      "side": "L",
+      "restore": true,
+      "draft": {
+        "roi": [
+          520,
+          700,
+          640,
+          900
+        ],
+        "color": "skin"
+      }
+    },
+    {
+      "id": "Hand_L_Rest",
+      "group": "03_Arms/Left",
+      "z": 42,
+      "required": false,
+      "side": "L",
+      "restore": true,
+      "draft": {
+        "roi": [
+          510,
+          820,
+          640,
+          1000
+        ],
+        "color": "red"
+      },
+      "note": "크롭 범위 밖까지 이어짐"
+    },
+    {
+      "id": "Glove_L",
+      "group": "03_Arms/Left",
+      "z": 43,
+      "required": false,
+      "side": "L",
+      "restore": true
+    },
+    {
+      "id": "Waist_Armor_Front",
+      "group": "04_Accessories/Waist",
+      "z": 50,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          110,
+          530,
+          480,
+          760
+        ],
+        "color": "red"
+      }
+    },
+    {
+      "id": "Waist_Beads_Alt_Shadow",
+      "group": "04_Accessories/Waist",
+      "z": 52,
+      "required": false,
+      "side": null,
+      "restore": false
+    },
+    {
+      "id": "Waist_Beads_Main",
+      "group": "04_Accessories/Waist",
+      "z": 54,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          130,
+          600,
+          450,
+          700
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Waist_Belt",
+      "group": "04_Accessories/Waist",
+      "z": 55,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          150,
+          650,
+          450,
+          730
+        ],
+        "color": "gray"
+      }
+    },
+    {
+      "id": "Waist_Knot_L",
+      "group": "04_Accessories/Waist",
+      "z": 56,
+      "required": true,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          280,
+          820,
+          350,
+          900
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Waist_Knot_R",
+      "group": "04_Accessories/Waist",
+      "z": 57,
+      "required": true,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          210,
+          820,
+          285,
+          900
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Waist_Hanging_Orbs",
+      "group": "04_Accessories/Waist",
+      "z": 58,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          255,
+          700,
+          320,
+          830
+        ],
+        "color": "dark"
+      }
+    },
+    {
+      "id": "Head_Base",
+      "group": "01_Head/Face",
+      "z": 60,
+      "required": true,
+      "side": null,
+      "restore": true,
+      "draft": {
+        "roi": [
+          215,
+          170,
+          400,
+          345
+        ],
+        "color": "skin"
+      },
+      "note": "앞머리·가면 아래 이마 윤곽 복원"
+    },
+    {
+      "id": "Face_Shadow",
+      "group": "90_Shadow_Adjust",
+      "z": 62,
+      "required": false,
+      "side": null,
+      "restore": false
+    },
+    {
+      "id": "Ear_L",
+      "group": "01_Head/Face",
+      "z": 64,
+      "required": false,
+      "side": "L",
+      "restore": true,
+      "note": "기준 이미지에서 머리카락에 가려짐"
+    },
+    {
+      "id": "Ear_R",
+      "group": "01_Head/Face",
+      "z": 65,
+      "required": false,
+      "side": "R",
+      "restore": true
+    },
+    {
+      "id": "Eye_L_White",
+      "group": "01_Head/Eyes",
+      "z": 70,
+      "required": true,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          305,
+          215,
+          355,
+          255
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Eye_L_Iris",
+      "group": "01_Head/Eyes",
+      "z": 72,
+      "required": true,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          305,
+          215,
+          355,
+          255
+        ],
+        "color": "dark"
+      }
+    },
+    {
+      "id": "Eye_L_Pupil",
+      "group": "01_Head/Eyes",
+      "z": 74,
+      "required": true,
+      "side": "L",
+      "restore": false
+    },
+    {
+      "id": "Eye_L_Highlight",
+      "group": "01_Head/Eyes",
+      "z": 76,
+      "required": true,
+      "side": "L",
+      "restore": false
+    },
+    {
+      "id": "Eye_L_LowerLid",
+      "group": "01_Head/Eyes",
+      "z": 78,
+      "required": true,
+      "side": "L",
+      "restore": false
+    },
+    {
+      "id": "Eye_L_UpperLid",
+      "group": "01_Head/Eyes",
+      "z": 80,
+      "required": true,
+      "side": "L",
+      "restore": false
+    },
+    {
+      "id": "Eye_L_Lashes",
+      "group": "01_Head/Eyes",
+      "z": 82,
+      "required": true,
+      "side": "L",
+      "restore": false
+    },
+    {
+      "id": "Eye_R_White",
+      "group": "01_Head/Eyes",
+      "z": 71,
+      "required": true,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          235,
+          220,
+          285,
+          260
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Eye_R_Iris",
+      "group": "01_Head/Eyes",
+      "z": 73,
+      "required": true,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          235,
+          220,
+          285,
+          260
+        ],
+        "color": "dark"
+      }
+    },
+    {
+      "id": "Eye_R_Pupil",
+      "group": "01_Head/Eyes",
+      "z": 75,
+      "required": true,
+      "side": "R",
+      "restore": false
+    },
+    {
+      "id": "Eye_R_Highlight",
+      "group": "01_Head/Eyes",
+      "z": 77,
+      "required": true,
+      "side": "R",
+      "restore": false
+    },
+    {
+      "id": "Eye_R_LowerLid",
+      "group": "01_Head/Eyes",
+      "z": 79,
+      "required": true,
+      "side": "R",
+      "restore": false
+    },
+    {
+      "id": "Eye_R_UpperLid",
+      "group": "01_Head/Eyes",
+      "z": 81,
+      "required": true,
+      "side": "R",
+      "restore": false
+    },
+    {
+      "id": "Eye_R_Lashes",
+      "group": "01_Head/Eyes",
+      "z": 83,
+      "required": true,
+      "side": "R",
+      "restore": false
+    },
+    {
+      "id": "Brow_L",
+      "group": "01_Head/Brows",
+      "z": 88,
+      "required": true,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          300,
+          200,
+          360,
+          230
+        ],
+        "color": "dark"
+      }
+    },
+    {
+      "id": "Brow_R",
+      "group": "01_Head/Brows",
+      "z": 89,
+      "required": true,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          230,
+          205,
+          290,
+          235
+        ],
+        "color": "dark"
+      }
+    },
+    {
+      "id": "Nose_Base",
+      "group": "01_Head/Face",
+      "z": 90,
+      "required": false,
+      "side": null,
+      "restore": false
+    },
+    {
+      "id": "Mouth_Inner",
+      "group": "01_Head/Mouth",
+      "z": 92,
+      "required": true,
+      "side": null,
+      "restore": true,
+      "note": "닫힌 입이라 내부 미노출. 제작 필요"
+    },
+    {
+      "id": "Teeth_Upper",
+      "group": "01_Head/Mouth",
+      "z": 93,
+      "required": false,
+      "side": null,
+      "restore": true
+    },
+    {
+      "id": "Tongue",
+      "group": "01_Head/Mouth",
+      "z": 94,
+      "required": false,
+      "side": null,
+      "restore": true
+    },
+    {
+      "id": "Mouth_Open",
+      "group": "01_Head/Mouth",
+      "z": 95,
+      "required": true,
+      "side": null,
+      "restore": true
+    },
+    {
+      "id": "Mouth_Line",
+      "group": "01_Head/Mouth",
+      "z": 96,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          265,
+          275,
+          325,
+          305
+        ],
+        "color": "red"
+      }
+    },
+    {
+      "id": "Cheek_L_Blush",
+      "group": "01_Head/Face",
+      "z": 98,
+      "required": false,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          330,
+          240,
+          365,
+          270
+        ],
+        "color": "red"
+      }
+    },
+    {
+      "id": "Cheek_R_Blush",
+      "group": "01_Head/Face",
+      "z": 99,
+      "required": false,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          230,
+          245,
+          265,
+          275
+        ],
+        "color": "red"
+      }
+    },
+    {
+      "id": "Hair_Side_L",
+      "group": "01_Head/HairFront",
+      "z": 100,
+      "required": true,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          370,
+          180,
+          430,
+          300
+        ],
+        "color": "hair"
+      }
+    },
+    {
+      "id": "Hair_Side_R",
+      "group": "01_Head/HairFront",
+      "z": 101,
+      "required": true,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          200,
+          180,
+          260,
+          320
+        ],
+        "color": "hair"
+      }
+    },
+    {
+      "id": "Hair_Bangs_Shadow",
+      "group": "90_Shadow_Adjust",
+      "z": 103,
+      "required": false,
+      "side": null,
+      "restore": false
+    },
+    {
+      "id": "Hair_Front_Center",
+      "group": "01_Head/HairFront",
+      "z": 104,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          270,
+          180,
+          360,
+          240
+        ],
+        "color": "hair"
+      }
+    },
+    {
+      "id": "Hair_Front_L_1",
+      "group": "01_Head/HairFront",
+      "z": 105,
+      "required": true,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          330,
+          180,
+          400,
+          250
+        ],
+        "color": "hair"
+      }
+    },
+    {
+      "id": "Hair_Front_L_2",
+      "group": "01_Head/HairFront",
+      "z": 106,
+      "required": true,
+      "side": "L",
+      "restore": false
+    },
+    {
+      "id": "Hair_Front_R_1",
+      "group": "01_Head/HairFront",
+      "z": 107,
+      "required": true,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          220,
+          185,
+          290,
+          260
+        ],
+        "color": "hair"
+      }
+    },
+    {
+      "id": "Hair_Front_R_2",
+      "group": "01_Head/HairFront",
+      "z": 108,
+      "required": true,
+      "side": "R",
+      "restore": false
+    },
+    {
+      "id": "Hair_Top_Tuft",
+      "group": "01_Head/HairFront",
+      "z": 110,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          300,
+          20,
+          440,
+          140
+        ],
+        "color": "hair"
+      }
+    },
+    {
+      "id": "Mask_Fox_Base",
+      "group": "01_Head/Mask",
+      "z": 120,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          190,
+          100,
+          400,
+          235
+        ],
+        "color": "red"
+      }
+    },
+    {
+      "id": "Mask_Fox_Horn_L",
+      "group": "01_Head/Mask",
+      "z": 122,
+      "required": true,
+      "side": "L",
+      "restore": false,
+      "draft": {
+        "roi": [
+          300,
+          90,
+          360,
+          150
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Mask_Fox_Horn_R",
+      "group": "01_Head/Mask",
+      "z": 123,
+      "required": true,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          185,
+          120,
+          250,
+          185
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Mask_Detail_Decal",
+      "group": "01_Head/Mask",
+      "z": 124,
+      "required": false,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          225,
+          120,
+          300,
+          175
+        ],
+        "color": "white"
+      }
+    },
+    {
+      "id": "Headband_Base",
+      "group": "01_Head/Mask",
+      "z": 126,
+      "required": true,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          200,
+          140,
+          420,
+          250
+        ],
+        "color": "dark"
+      }
+    },
+    {
+      "id": "Arm_Upper_R",
+      "group": "03_Arms/Right",
+      "z": 130,
+      "required": false,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          40,
+          430,
+          200,
+          620
+        ],
+        "color": "skin"
+      },
+      "note": "캐릭터 오른팔(화면 왼쪽), 부적을 든 팔. 명세 16.4 Arm_*_Left에 해당"
+    },
+    {
+      "id": "Arm_Lower_R",
+      "group": "03_Arms/Right",
+      "z": 131,
+      "required": false,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          60,
+          300,
+          190,
+          460
+        ],
+        "color": "skin"
+      }
+    },
+    {
+      "id": "Glove_R",
+      "group": "03_Arms/Right",
+      "z": 132,
+      "required": false,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          55,
+          330,
+          180,
+          500
+        ],
+        "color": "red"
+      }
+    },
+    {
+      "id": "Hand_R_Gesture",
+      "group": "03_Arms/Right",
+      "z": 133,
+      "required": false,
+      "side": "R",
+      "restore": false,
+      "draft": {
+        "roi": [
+          70,
+          240,
+          190,
+          370
+        ],
+        "color": "skin"
+      },
+      "note": "세운 검지+부적 포즈를 하나의 파츠로 처리"
+    },
+    {
+      "id": "Ofuda_Paper",
+      "group": "04_Accessories/Ofuda",
+      "z": 134,
+      "required": false,
+      "side": null,
+      "restore": false,
+      "draft": {
+        "roi": [
+          0,
+          150,
+          165,
+          320
+        ],
+        "color": "white"
+      }
+    }
+  ]
+}
