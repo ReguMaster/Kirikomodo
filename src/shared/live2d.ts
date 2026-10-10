@@ -26,6 +26,7 @@ export interface Model3Summary {
   files: string[]
   motions: Record<string, string[]>
   expressions: Record<string, string>
+  physics?: string
   hitAreas: { id: string; name: string }[]
   eyeBlinkIds: string[]
   lipSyncIds: string[]
@@ -101,7 +102,8 @@ export function inspectModel3(json: unknown): Model3Summary {
   const hitAreas = (Array.isArray(root.HitAreas) ? root.HitAreas.map(obj) : [])
     .filter((h) => typeof h.Id === 'string')
     .map((h) => ({ id: h.Id as string, name: typeof h.Name === 'string' ? h.Name : (h.Id as string) }))
-  return { moc, textures: textureRefs, files: [...files], motions, expressions, hitAreas, eyeBlinkIds: ids('EyeBlink'), lipSyncIds: ids('LipSync') }
+  const physics = refs.Physics ? checkModelRef('physics', refs.Physics) : undefined
+  return { moc, textures: textureRefs, files: [...files], motions, expressions, physics, hitAreas, eyeBlinkIds: ids('EyeBlink'), lipSyncIds: ids('LipSync') }
 }
 
 export function modelFileUrl(modelId: string, relPath: string): string {

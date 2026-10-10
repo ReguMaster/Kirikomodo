@@ -2,6 +2,7 @@ import type { CharacterRenderer, Emotion, HitArea, Motion } from '@shared/types'
 import { CORE_FILE, MODEL_MAP_FILE, coreScriptUrl, inspectModel3, modelFileUrl, type ModelInfo, type Model3Summary } from '@shared/live2d'
 import type { PlaceholderOptions } from './PlaceholderRenderer'
 import { evaluateCurve, motionWeight, parseExpression3, parseMotion3, type ExpressionData, type MotionData } from './live2dMotion'
+import { parsePhysics3, stepPhysics, type ParamAccess, type PhysicsData } from './live2dPhysics'
 
 type Core = typeof Live2DCubismCore
 
@@ -91,7 +92,7 @@ async function fetchModelFile(modelId: string, rel: string, as: 'json' | 'buffer
   return as === 'json' ? res.json() : res.arrayBuffer()
 }
 
-// Cubism Core 를 직접 다루는 최소 WebGL 렌더러. 물리(physics3)·포즈·모션 사운드는 지원하지 않는다.
+// Cubism Core 를 직접 다루는 최소 WebGL 렌더러. 포즈·모션 사운드는 지원하지 않는다.
 export class Live2DRenderer implements CharacterRenderer {
   private options: PlaceholderOptions
   private container: HTMLElement | null = null
@@ -109,6 +110,7 @@ export class Live2DRenderer implements CharacterRenderer {
   private motions: Record<string, MotionData[]> = {}
   private expressions: Record<string, ExpressionData> = {}
   private map: ModelMap = { motions: {}, emotions: {} }
+  private physics: PhysicsData | null = null
   private hitAreas: { index: number; area: NonNullable<HitArea> }[] = []
   private active: ActiveMotion | null = null
   private expression: ActiveExpression | null = null
@@ -160,6 +162,7 @@ export class Live2DRenderer implements CharacterRenderer {
       this.initGl(gl)
       this.textures = await Promise.all(summary.textures.map((t) => this.loadTexture(gl, modelFileUrl(id, t))))
       await this.loadClips(summary)
+      if (summary.physics) this.physics = parsePhysics3(await fetchModelFile(id, summary.physics, 'json'))
       this.buildHitAreas(summary)
 
       this.resizeObserver = new ResizeObserver(() => this.resize())
@@ -208,6 +211,7 @@ export class Live2DRenderer implements CharacterRenderer {
     this.hitAreas = []
     this.motions = {}
     this.expressions = {}
+    this.physics = null
   }
 
   setEmotion(emotion: Emotion): void {
@@ -408,6 +412,22 @@ export class Live2DRenderer implements CharacterRenderer {
     return !!box && cx >= box[0] && cx <= box[2] && cy >= box[1] && cy <= box[3]
   }
 
+  private paramAccess: ParamAccess = {
+    get: (id) => {
+      const i = this.paramIndex.get(id)
+      return i === undefined ? undefined : this.model!.parameters.values[i]
+    },
+    range: (id) => {
+      const i = this.paramIndex.get(id)
+      const p = this.model!.parameters
+      return i === undefined ? undefined : [p.minimumValues[i], p.maximumValues[i]]
+    },
+    set: (id, value) => {
+      const i = this.paramIndex.get(id)
+      if (i !== undefined) this.model!.parameters.values[i] = value
+    }
+  }
+
   private param(id: string, fn: (v: number) => number): void {
     const i = this.paramIndex.get(id)
     if (i === undefined) return
@@ -490,6 +510,8 @@ export class Live2DRenderer implements CharacterRenderer {
         for (const id of this.summary?.eyeBlinkIds ?? []) this.param(id, (v) => v * open)
       }
     }
+    // 5. 물리(머리카락·술·꼬리 등): 고개·몸 각도를 입력으로 흔들림 파라미터를 덮어쓴다
+    if (this.physics && !reduceMotion) stepPhysics(this.physics, this.paramAccess, dt / 1000)
     for (let i = 0; i < p.count; i++) p.values[i] = Math.max(p.minimumValues[i], Math.min(p.maximumValues[i], p.values[i]))
 
     model.update()

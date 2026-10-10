@@ -282,8 +282,10 @@ def main(out_dir: str):
     moc = os.path.join(out_dir, 'kiriko.moc3')
     m.save(moc)
     from kiriko_anim import write_all
+    from kiriko_physics import write as write_physics
     model3 = k.model3('kiriko.moc3')
     model3['FileReferences']['Motions'], model3['FileReferences']['Expressions'] = write_all(out_dir)
+    model3['FileReferences']['Physics'] = write_physics(out_dir)
     with open(os.path.join(out_dir, 'kiriko.model3.json'), 'w', encoding='utf-8') as f:
         json.dump(model3, f, ensure_ascii=False, indent=2)
     print(f'wrote {moc}: parts={len(k.b.parts)} params={len(k.b.params)} deformers={len(k.b.deformers)} artmeshes={len(k.b.artmeshes)}')

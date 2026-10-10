@@ -76,6 +76,10 @@ if (fs.existsSync(atlas)) {
     assert.ok(fs.existsSync(path.join(kdir, f)), f)
   }
   console.log('kiriko_anim.py: 10 motions / 7 expressions / model-map.json written and registered')
+  const phys = JSON.parse(fs.readFileSync(path.join(kdir, km3.Physics), 'utf8'))
+  assert.strictEqual(phys.PhysicsSettings.length, phys.Meta.PhysicsSettingCount, 'physics3 설정 수')
+  assert.ok(phys.PhysicsSettings.length >= 11, 'physics3 설정 11종 이상')
+  console.log(`kiriko_physics.py: ${phys.PhysicsSettings.length} physics settings registered`)
 }
 
 console.log('moc3 inspector selftest passed')
