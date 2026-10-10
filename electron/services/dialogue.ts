@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { BrowserWindow, app, dialog } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { ChatMessage, TimeOfDay } from '@shared/types'
-import { getTimeOfDay } from '@core/BehaviorEngine'
+import { getTimeOfDay, isWithinQuietHours } from '@core/BehaviorEngine'
 import { ScriptedDialogueProvider } from '@core/ScriptedDialogueProvider'
 import { openChatStore, type ChatStore } from '@core/chatStore'
 import { getSettings } from './settings'
@@ -103,6 +103,7 @@ export async function sendChat(text: string): Promise<ChatMessage> {
 export function speakProactive(): ChatMessage | null {
   const { behavior, dialogue } = getSettings()
   if (!dialogue.scriptedEnabled || !behavior.proactiveDialogue) return null
+  if (behavior.doNotDisturb || isWithinQuietHours(new Date(), behavior.quietHours)) return null
   const timeOfDay = currentTimeOfDay()
   if (store) {
     const dayStart = new Date().setHours(0, 0, 0, 0)
