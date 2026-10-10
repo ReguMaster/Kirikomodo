@@ -1,15 +1,14 @@
-// Live2D 실렌더링 검증. `KMD_L2D_SAMPLE=<npm pack live2dcubismcore 를 푼 package 폴더> npm run test:e2e:live2d`
-// 내장 Core(external/live2dcubismcore)로 샘플 모델을 실제 가져오기 경로(importModel)로 불러와 캔버스가 그려지는지 본다.
+// Live2D 실렌더링 검증. `npm run test:e2e:live2d` (모델 지정: KMD_L2D_MODEL=<.model3.json>, 기본은 Haru 샘플)
+// 내장 Core(external/live2dcubismcore)로 모델을 실제 가져오기 경로(importModel)로 불러와 캔버스가 그려지는지 본다.
 const { app, BrowserWindow, dialog } = require('electron')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
 
 const ROOT = path.resolve(__dirname, '../..')
-const sample = process.env.KMD_L2D_SAMPLE
-const model3 = sample && path.join(sample, 'characters/haru_greeter_pro_jp/runtime/haru_greeter_t03.model3.json')
-if (!model3 || !fs.existsSync(model3)) {
-  console.error('KMD_L2D_SAMPLE 에 `npm pack live2dcubismcore` 를 푼 package 폴더를 지정하세요')
+const model3 = process.env.KMD_L2D_MODEL || path.join(ROOT, 'assets/live2d-authoring/samples/live2dcubismcore/characters/haru_greeter_pro_jp/runtime/haru_greeter_t03.model3.json')
+if (!fs.existsSync(model3)) {
+  console.error(`모델이 없어요: ${model3}\n샘플은 docs/moc3-generation-handoff.md 의 "샘플 준비"를 참고하세요`)
   process.exit(2)
 }
 

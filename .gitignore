@@ -54,3 +54,6 @@ autopilot/
 # Live2D 제작 파이프라인 산출물(비배포 원화 파생물)
 assets/live2d-authoring/output/*
 !assets/live2d-authoring/output/.gitkeep
+
+# Live2D 공식 샘플(재배포 금지, 검증·해독용): npm pack live2dcubismcore@1.0.2 를 푼 폴더
+assets/live2d-authoring/samples/
