@@ -51,4 +51,24 @@ assert.deepStrictEqual(Object.keys(effect('ParamAngle=30')), ['MeshArm', 'MeshHa
 assert.deepStrictEqual(Object.keys(effect('ParamHand=30')), ['MeshHand'], '중첩 회전은 자기 자식만')
 console.log('gen.py demo: Core VALID, 7 parameters move the intended drawables')
 
+// 키리코: atlas 가 있으면 kiriko.py 로 조립해 Core VALID + 핵심 파라미터가 드로어블을 움직이는지 본다(에셋은 Git 무시라 없으면 건너뜀)
+const atlas = path.join(__dirname, '../../assets/models/private/kiriko/atlas.json')
+if (fs.existsSync(atlas)) {
+  const kdir = path.join(tmp, 'kiriko')
+  const kg = spawnSync('python', [path.join(__dirname, 'kiriko.py'), kdir], { encoding: 'utf8' })
+  assert.strictEqual(kg.status, 0, kg.stdout + kg.stderr)
+  const kmoc = path.join(kdir, 'kiriko.moc3')
+  const keff = (...sets) => {
+    const r = inspect(kmoc, '--json', ...sets)
+    assert.strictEqual(r.status, 0, r.stdout + r.stderr)
+    return JSON.parse(r.stdout.slice(r.stdout.indexOf('{'))).setEffect.movedDrawables.map((m) => m.id)
+  }
+  assert.ok(keff('ParamAngleX=30').includes('Face_Base'), '고개 좌우가 얼굴을 움직여야 해요')
+  assert.ok(keff('ParamEyeLOpen=0').includes('Eye_L_Closed'), '눈 감김이 감은 눈 레이어를 켜야 해요')
+  assert.deepStrictEqual(keff('ParamMouthOpenY=1'), ['Mouth_Line', 'Mouth_Open'], '입 열림')
+  assert.deepStrictEqual(keff('ParamTail=1'), ['Tail'], '꼬리')
+  assert.ok(keff('ParamBodyAngleX=10').includes('Torso'), '몸 기울기')
+  console.log('kiriko.py: Core VALID, head/eye/mouth/tail/body parameters move the intended drawables')
+}
+
 console.log('moc3 inspector selftest passed')

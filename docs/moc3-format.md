@@ -37,7 +37,7 @@ Haru 는 version 1 이라 섹션 101개(표 [0]~[100]). 전체 섹션 목록·�
 - **Keyforms**: WarpDeformerKeyforms(opacities, keyformPositionSourcesBeginIndices) · RotationDeformerKeyforms(opacities, angles, originX, originY, scales, isReflectX, isReflectY) · ArtMeshKeyforms(opacities, drawOrders, keyformPositionSourcesBeginIndices).
 - **KeyformPositions**: f32 xy 쌍. 단위는 캔버스 좌표를 ppu 로 나눈 모델 공간(Haru: -0.53, -0.96 …). **키폼 하나의 정점 블록은 `vertexCount×2` 를 16 f32(64 B) 단위로 올림한 크기를 차지한다**(Haru 전 키폼 확인, begin 값이 모두 16 의 배수). 공개 자료엔 없는 규칙이라 생성기에서 지켜야 한다. Warp 키폼 블록이 먼저, 그 뒤 아트메시 키폼 블록이 온다(Haru). 
 - **바인딩 체인**: 객체.keyformBindingSourcesIndices → KeyformBindings(parameterBindingIndexSourcesBegin/Counts) → ParameterBindingIndices(s32) → ParameterBindings(keysSourcesBegin/Counts) → Keys(f32). 한 객체의 **키폼 수 = 바인딩된 파라미터별 키 수의 곱**(Haru 84 아트메시 전부 확인). 바인딩 수 0 인 keyformBinding(인덱스 0) 은 키폼 1개짜리 고정 객체용. 파라미터의 parameterBindingSourcesBegin 은 Haru 에서 파라미터 인덱스와 동일(파라미터당 바인딩 1개).
-- **UVs** f32, **PositionIndices** s16(삼각형 3개씩), **DrawableMasks** s32(아트메시 인덱스).
+- **UVs** f32 — **v 는 텍스처 위가 0(top-down)**. 앱 렌더러 셰이더가 `1 - uv.y` 로 뒤집어 WebGL 에 넘기며, 키리코 조립에서 `1 - y/H` 로 쓰자 전 레이어가 뒤섞여 확인했다(2026-10-10). **PositionIndices** s16(삼각형 3개씩), **DrawableMasks** s32(아트메시 인덱스).
 - **DrawOrderGroups**: objectSourcesBeginIndices · objectSourcesCounts · objectSourcesTotalCounts · maximumDrawOrders · minimumDrawOrders. **DrawOrderGroupObjects**: types(0 artMesh, 1 part) · indices · selfIndices(-1). Haru 는 그룹 1개가 아트메시 84개를 담는다.
 - **Glue**(0 이어도 섹션 자리는 있어야 함): Glue 9개 섹션, GlueInfo(weights f32, positionIndices s16), GlueKeyforms(intensities).
 - V3.03 은 warpDeformer `isQuadSource` 1개 섹션 추가, V4.02 는 파라미터 확장·키폼 색·블렌드셰이프 섹션 추가, V5.00 은 색 begin 인덱스·파츠/회전/글루 블렌드셰이프 추가. 목표는 version 1 이라 생성기는 V3.00 만 쓴다.
