@@ -92,14 +92,14 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 
 ## 키리코 moc3 조립 결과 (2026-10-10, TASKS 6)
 - **`tools/moc3/kiriko.py`**: `atlas.json`(rect/src) + `layer-plan.json`(z·그룹) → `assets/models/private/kiriko/kiriko.moc3`(1.1MB, V3.00) + `kiriko.model3.json`(Groups EyeBlink/LipSync, HitAreas Head/Body, 모션·표정은 7번에서). 파츠 14(그룹별)·파라미터 28·워프 2(`WarpBody` 루트 2×2, `WarpHead` 4×5 머리 상자 (700,100)-(1850,1720), 목 피벗 (1265,1050))·아트메시 58(흔들림 레이어 3×8 격자, 귀 2×3, 나머지 2×2). 모든 키폼은 픽셀로 계산해 부모 좌표(모델 공간 / 워프 격자 0..1)로 변환한다.
-- 리깅: ParamAngleX/Y/Z(머리 워프 + 얼굴 파츠 깊이 시차 PARALLAX), ParamEyeL/ROpen(눈 아랫선 기준 세로 축소 + 키 0.3 에서 Closed 레이어로 교차), ParamEyeBallX/Y(홍채 ±8/5px), ParamBrowL/RY, ParamMouthOpenY(Line↔Open 교차 + 세로 스케일), ParamMouthForm(-1 Frown / 0 Line / 1 Smile), **ParamEyeVariant 0..5(기본·Half·Wide·Teary·Glare·Sleepy)·ParamMouthVariant 0..5(기본·O·Grin·Curious·Annoyed·Sleepy)** 는 표정 변형 레이어의 정수 스위치(7번 exp3 에서 사용. happy/wink 눈은 EyeOpen=0), ParamBodyAngleX/Y/Z·ParamBreath(몸 워프), ParamEarR/L(귀 밑 기준 ±14°), ParamTail(뿌리 기준 거리 비례 ±9° 휨), 물리용 ParamHairFront/HairSide/HairBack/Tassel/Ofuda/Skirt/Ribbon/Sleeve(위 고정 t² 흔들림, 진폭은 `SWAY` 표).
+- 리깅: ParamAngleX/Y/Z(머리 워프 + 얼굴 파츠 깊이 시차 PARALLAX), ParamEyeL/ROpen(눈 아랫선 기준 세로 축소 + 키 0.3 에서 Closed 레이어로 교차), ParamEyeBallX/Y(홍채 ±8/5px), ParamBrowL/RY, ParamMouthOpenY(Line↔Open 교차 + 세로 스케일), ParamMouthForm(-1 Frown / 0 Line / 1 Smile), **눈 변형 가중치 ParamEyeHalf/Wide/Teary/Glare/Sleepy·입 변형 가중치 ParamMouthO/Grin/Curious/Annoyed/Sleepy(0..1)** 는 표정 변형 레이어를 켠다(7번 exp3 에서 사용, 아래 "표정 변형 보간" 절. happy/wink 눈은 EyeOpen=0), ParamBodyAngleX/Y/Z·ParamBreath(몸 워프), ParamEarR/L(귀 밑 기준 ±14°), ParamTail(뿌리 기준 거리 비례 ±9° 휨), 물리용 ParamHairFront/HairSide/HairBack/Tassel/Ofuda/Skirt/Ribbon/Sleeve(위 고정 t² 흔들림, 진폭은 `SWAY` 표).
 - **검증**: `inspect-core` VALID, 파라미터별 반응 확인(AngleX 42개·BodyAngleX 53개·EyeLOpen 9개·MouthOpenY 2개·Tail/EarL 1개 이동). `npm run test:moc3` 에 키리코 조립+반응 검사 추가(atlas 없으면 건너뜀). **앱 실렌더 `KMD_L2D_MODEL=assets/models/private/kiriko/kiriko.model3.json npm run test:e2e:live2d` all passed**, 캡처(368×460)를 Read 로 확인: 원본과 같은 귀여운 2D 일러스트로 그려짐(합격 기준 3 충족). 아직 안 본 것: 앱에서 머리 회전·표정 변형 레이어의 육안 확인(9번), 마스크·글루 미사용.
 - **발견한 규약(중요)**: 이 앱 렌더러(셰이더가 `1 - uv.y`)와 Haru 기준 **moc3 의 UV v 는 텍스처 위가 0(top-down)** 이다. 처음에 `1 - y/4096` 로 썼더니 소매 자리에 허리 리본이 그려지는 식으로 전부 뒤섞였다. `docs/moc3-format.md` 에도 기록.
 - 레이어를 다시 자르면(`cut_parts.py`→`make_atlas.py`) `python tools/moc3/kiriko.py` 만 다시 돌리면 된다(rect/src 를 atlas 에서 읽음).
 
 ## 감정·모션 결과 (2026-10-10, TASKS 7)
 - **`tools/moc3/kiriko_anim.py`**(kiriko.py 가 import): `expressions/<emotion>.exp3.json` 7종(neutral/happy/playful/curious/concerned/annoyed/sleepy — 앱 `Emotion` 이름 그대로), `motions/<motion>.motion3.json` 10종(idle·rest 는 Loop, blink 0.3s, look/greet/wave/headTilt/stretch/yawn/reactTap), `model-map.json`(motions idle→Idle … rest→Rest, emotions 동명). `kiriko.model3.json` FileReferences.Motions 는 그룹명 Idle/Blink/Look/Greet/Wave/HeadTilt/Stretch/Yawn/ReactTap/Rest, Expressions 는 Name=감정명.
-- 표정 규약: 눈 감김·입 모양은 Overwrite(EyeOpen 0, MouthForm, EyeVariant/MouthVariant 정수), 눈썹·고개 기울기는 Add. 모션에서 Variant 정수 파라미터는 **stepped(type 2) 세그먼트만** 사용(보간 중 다른 변형 레이어가 비치는 것 방지), 나머지는 ease-in-out 베지어(`smooth`), 주기 흔들림은 `wave`.
+- 표정 규약: 눈 감김·입 모양·변형 가중치는 Overwrite(EyeOpen 0, MouthForm, ParamEyeWide 1 …), 눈썹·고개 기울기는 Add. 모든 곡선은 ease-in-out 베지어(`smooth`), 주기 흔들림은 `wave`(변형이 가중치가 되면서 stepped 세그먼트는 더 이상 쓰지 않는다).
 - **검증**: 앱 파서(`src/character/live2dMotion.ts` parseMotion3/parseExpression3/evaluateCurve/motionWeight)로 17개 파일 전부 파싱·0.05s 간격 평가 → NaN 0, 값 범위가 파라미터 범위 안. `test:e2e:live2d` 가져오기 20파일(moc3·텍스처 2·모션 10·표정 7 + model-map.json) 복사·렌더 all passed. `npm run test:moc3` 에 등록 수 검사 추가. 아직 안 본 것: 앱에서 각 모션·표정을 실제로 재생한 모습(9번에서 육안).
 - 재생성: `python tools/moc3/kiriko.py` 한 번이면 moc3·model3·exp3·motion3·model-map 모두 다시 쓴다.
 
@@ -122,6 +122,12 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - **한계 7°**: 소매 끝단이 캔버스 왼쪽 가장자리에서 225px 떨어져 있어 약 6.5° 를 넘기면 화면 밖으로 잘린다. 회전 디포머 대신 아트메시 키폼에 픽셀 공간 회전을 직접 계산해 넣었다(몸 워프의 정규화 좌표는 x·y 축척이 달라 회전이 찌그러지고, 키는 15° 간격이 되지 않도록 5개를 둠).
 - 모션: idle(±0.12 느린 흔들림), greet(0.5 로 살짝 벌림), **wave(ArmR 을 0.3~1.0 로 0.6초 주기로 흔듦)**, stretch(양쪽 1.0), yawn(0.5), reactTap(0.7 튕김), rest(-0.4 모음).
 - 고해상도 캡처(`KMD_HIRES=1`)로 stretch 의 소매 벌어짐을 확인했다. 소매가 벌어지면 소매 안쪽 아랫부분(손 높이)의 **분리 잔여물**(붉은 번짐·톱니 모양 모서리)이 더 잘 보인다. 휴지 자세에서도 있던 것이라 이번에 만든 문제는 아니며, 앱 기본 크기(320×400)에서는 3~6px 이라 눈에 띄지 않는다. 고치려면 Apron/Hakama 복원 영역을 소매 손목 근처에서 다시 만든다.
+
+## 표정 변형 보간 (2026-10-10, 품질 개선 4단계 — 눈·입)
+- **문제**: 변형이 정수 스위치 하나(`ParamEyeVariant` 0..5)라서 ① 표정이 바뀌는 0.3초 동안 중간 번호의 눈(Half·Wide…)이 순서대로 번쩍였고(exp3 Overwrite 가 값을 선형으로 올리므로) ② 기본 눈↔변형이 즉시 교체됐다. 렌더러는 표정이 바뀔 때 이전 표정을 페이드아웃하지 않고 끊었다.
+- **변경**: 변형마다 독립 0..1 가중치 파라미터로 분리(눈 5·입 5). 변형 레이어 불투명도 = (눈은 EyeOpen 교차 × ) 자기 가중치, 기본 눈·입(White/Iris/Lashes, Line/Open/Smile/Frown) 불투명도 = (1 − 가중치 합, 상한 1). 표정이 바뀌면 두 이미지가 교차 페이드한다. 기본 눈이 모든 가중치에 묶여 키폼이 늘어 moc3 가 1.1MB → 4.1MB 가 됐다(Core 갱신 비용은 무시할 수준).
+- **렌더러**(`src/character/Live2DRenderer.ts`): `setEmotion` 이 이전 표정 데이터를 들고 있다가 새 표정이 들어오는 동안(fadeIn 0.3s) 가중치 `1 − w` 로 이전 표정을 적용해 페이드아웃한다. neutral 로 돌아갈 때도 부드럽다.
+- 검증: `test:moc3` 에 "변형 가중치는 기본 눈·입과 교차 페이드" 검사 추가, 표정 전환 중간 프레임(80·160·240·500ms)을 양방향으로 캡처해 중간 상태가 섞이고 최종 상태가 정확한 것을 확인, `test:e2e:live2d` all passed. 전환 캡처 스크립트는 일회용이라 저장소에 넣지 않았다(`KMD_SHOT_DIR` 하네스로 충분).
 
 ## 상태
 - 포맷 해독·라운드트립 writer·**처음부터 생성하는 생성기**까지 완료(2026-10-10). `gen.py` 의 `Builder` 로 만든 기하 도형 모델을 Core 가 VALID 로 열고 7개 파라미터가 의도한 드로어블만 움직인다(`npm run test:moc3`). 아직 앱에서 렌더(합격 기준 3)는 안 봤다 — 텍스처가 없는 도형 모델이라 키리코 파츠가 준비되면 본다.

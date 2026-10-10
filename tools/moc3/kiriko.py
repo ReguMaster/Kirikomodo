@@ -4,7 +4,8 @@
 검증: node tools/moc3/inspect-core.cjs assets/models/private/kiriko/kiriko.moc3 ParamAngleX=30
 
 좌표: 모든 키폼은 정리본 픽셀(2530×3006, y 아래 +)로 계산한 뒤 부모 좌표(모델 공간 또는 워프 격자 0..1)로 변환한다.
-표정 변형 레이어는 ParamEyeVariant / ParamMouthVariant 의 정수 키로 켠다(0 = 기본).
+표정 변형 레이어는 변형마다 0..1 가중치 파라미터(ParamEyeWide, ParamMouthGrin …)로 켠다. 기본 눈·입은 (1 - 가중치 합)으로 꺼져서
+표정이 바뀔 때 두 이미지가 교차 페이드한다.
 """
 from __future__ import annotations
 
@@ -21,8 +22,9 @@ ATLAS = os.path.join(ROOT, 'assets/models/private/kiriko/atlas.json')
 PLAN = os.path.join(ROOT, 'assets/live2d-authoring/input/layer-plan.json')
 TEX = 4096
 
-EYE_VARIANTS = ['', 'Half', 'Wide', 'Teary', 'Glare', 'Sleepy']          # ParamEyeVariant 0..5 (Closed 는 EyeOpen=0)
-MOUTH_VARIANTS = ['', 'Mouth_O', 'Mouth_Grin', 'Mouth_Curious', 'Mouth_Annoyed', 'Mouth_Sleepy']  # ParamMouthVariant 0..5
+EYE_VARIANTS = {'Half': 'ParamEyeHalf', 'Wide': 'ParamEyeWide', 'Teary': 'ParamEyeTeary', 'Glare': 'ParamEyeGlare', 'Sleepy': 'ParamEyeSleepy'}  # 눈 변형 접미사 → 가중치(Closed 는 EyeOpen=0)
+MOUTH_VARIANTS = {'Mouth_O': 'ParamMouthO', 'Mouth_Grin': 'ParamMouthGrin', 'Mouth_Curious': 'ParamMouthCurious',
+                  'Mouth_Annoyed': 'ParamMouthAnnoyed', 'Mouth_Sleepy': 'ParamMouthSleepy'}
 HEAD_RECT = (700, 100, 1850, 1720)      # 머리 워프 격자(px). 귀·술·옆머리까지 포함
 HEAD_PIVOT = (1265, 1050)               # 목
 BODY_PIVOT = (1265, 3006)
@@ -104,8 +106,8 @@ class Kiriko:
         for pid in ('ParamEyeBallX', 'ParamEyeBallY', 'ParamBrowLY', 'ParamBrowRY', 'ParamMouthForm'):
             P(pid, -1, 1, 0, keys=[-1, 0, 1])
         P('ParamMouthOpenY', 0, 1, 0, keys=[0, 0.3, 1])
-        P('ParamEyeVariant', 0, len(EYE_VARIANTS) - 1, 0, keys=list(range(len(EYE_VARIANTS))), decimals=0)
-        P('ParamMouthVariant', 0, len(MOUTH_VARIANTS) - 1, 0, keys=list(range(len(MOUTH_VARIANTS))), decimals=0)
+        for pid in (*EYE_VARIANTS.values(), *MOUTH_VARIANTS.values()):
+            P(pid, 0, 1, 0, keys=[0, 1])
         for pid in ('ParamBodyAngleX', 'ParamBodyAngleY', 'ParamBodyAngleZ'):
             P(pid, -10, 10, 0, keys=[-10, 0, 10])
         P('ParamBreath', 0, 1, 0)
@@ -198,26 +200,23 @@ class Kiriko:
             side = lid[4]
             op = v['ParamEye' + side + 'Open']
             open_w = lerp_key(op, [0, 0.3, 1], [0, 1, 1])
-            variant = int(round(v['ParamEyeVariant']))
             if lid.endswith('Closed'):
                 return 1 - open_w
             tag = lid.split('_', 2)[2]
             if tag in ('White', 'Iris', 'Lashes'):
-                return open_w if variant == 0 else 0.0
-            return open_w if EYE_VARIANTS[variant] == tag else 0.0
+                return open_w * (1 - min(1.0, sum(v[pid] for pid in EYE_VARIANTS.values())))
+            return open_w * v[EYE_VARIANTS[tag]]
         if lid.startswith('Mouth_'):
-            variant = int(round(v['ParamMouthVariant']))
             if lid in MOUTH_VARIANTS:
-                return 1.0 if MOUTH_VARIANTS[variant] == lid else 0.0
-            if variant != 0:
-                return 0.0
+                return v[MOUTH_VARIANTS[lid]]
+            rest = 1 - min(1.0, sum(v[pid] for pid in MOUTH_VARIANTS.values()))
             open_w = lerp_key(v['ParamMouthOpenY'], [0, 0.3, 1], [0, 1, 1])
             if lid == 'Mouth_Open':
-                return open_w
+                return rest * open_w
             form = v['ParamMouthForm']
             shape = {'Mouth_Frown': lerp_key(form, [-1, 0, 1], [1, 0, 0]), 'Mouth_Line': lerp_key(form, [-1, 0, 1], [0, 1, 0]),
                      'Mouth_Smile': lerp_key(form, [-1, 0, 1], [0, 0, 1])}[lid]
-            return shape * (1 - open_w)
+            return rest * shape * (1 - open_w)
         return 1.0
 
     def bind_params(self, lid: str) -> list[str]:
@@ -233,13 +232,19 @@ class Kiriko:
         if lid.startswith('Brow_'):
             ps.append('ParamBrow' + lid[-1] + 'Y')
         if lid.startswith('Eye_'):
-            ps += ['ParamEye' + lid[4] + 'Open', 'ParamEyeVariant']
+            tag = lid.split('_', 2)[2]
+            ps.append('ParamEye' + lid[4] + 'Open')
+            if tag in EYE_VARIANTS:
+                ps.append(EYE_VARIANTS[tag])
+            elif tag != 'Closed':
+                ps += list(EYE_VARIANTS.values())
             if 'Iris' in lid:
                 ps += ['ParamEyeBallX', 'ParamEyeBallY']
         if lid.startswith('Mouth_'):
-            ps.append('ParamMouthVariant')
-            if lid not in MOUTH_VARIANTS:
-                ps.append('ParamMouthOpenY')
+            if lid in MOUTH_VARIANTS:
+                ps.append(MOUTH_VARIANTS[lid])
+            else:
+                ps += list(MOUTH_VARIANTS.values()) + ['ParamMouthOpenY']
                 if lid != 'Mouth_Open':
                     ps.append('ParamMouthForm')
         if any(lid.startswith(k) for k in PARALLAX):

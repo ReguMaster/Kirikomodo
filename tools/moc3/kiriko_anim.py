@@ -1,8 +1,8 @@
 """키리코 표정(exp3) 7종·모션(motion3) 10종·model-map.json. kiriko.py 가 moc3 와 함께 쓴다.
 
-파라미터 규약은 kiriko.py: ParamEyeVariant(0 기본·1 Half·2 Wide·3 Teary·4 Glare·5 Sleepy),
-ParamMouthVariant(0 기본·1 O·2 Grin·3 Curious·4 Annoyed·5 Sleepy), ParamMouthForm(-1 Frown·0 Line·1 Smile), 감은 눈 = EyeOpen 0.
-정수 스위치 파라미터는 모션에서 stepped 세그먼트로만 바꾼다(보간 중 다른 변형이 비치지 않게).
+파라미터 규약은 kiriko.py: 눈 변형 가중치 ParamEyeHalf/Wide/Teary/Glare/Sleepy(0..1), 입 변형 가중치
+ParamMouthO/Grin/Curious/Annoyed/Sleepy(0..1), ParamMouthForm(-1 Frown·0 Line·1 Smile), 감은 눈 = EyeOpen 0.
+변형은 가중치라 일반 곡선으로 바꿔도 되고, 표정이 바뀔 때 기본 눈·입과 변형이 교차 페이드한다.
 ParamArmR/L(소매 스윙, 어깨 피벗에서 바깥 +)은 idle·greet·wave·stretch·yawn·reactTap·rest 가 쓴다.
 """
 from __future__ import annotations
@@ -17,11 +17,11 @@ FPS = 30
 EXPRESSIONS: dict[str, dict[str, float]] = {
     'neutral': {},
     'happy': {'ParamEyeLOpen': 0, 'ParamEyeROpen': 0, 'ParamMouthForm': 1, 'add:ParamBrowLY': 0.3, 'add:ParamBrowRY': 0.3},
-    'playful': {'ParamEyeROpen': 0, 'ParamMouthVariant': 2, 'add:ParamAngleZ': 8, 'add:ParamBrowRY': 0.3},
-    'curious': {'ParamEyeVariant': 2, 'ParamMouthVariant': 3, 'add:ParamBrowLY': 0.6, 'add:ParamBrowRY': 0.6, 'add:ParamAngleZ': -6},
-    'concerned': {'ParamEyeVariant': 3, 'ParamMouthForm': -1, 'add:ParamBrowLY': -0.4, 'add:ParamBrowRY': -0.4, 'add:ParamAngleY': -4},
-    'annoyed': {'ParamEyeVariant': 4, 'ParamMouthVariant': 4, 'add:ParamBrowLY': -0.6, 'add:ParamBrowRY': -0.6},
-    'sleepy': {'ParamEyeVariant': 5, 'ParamMouthVariant': 5, 'add:ParamAngleY': -6, 'add:ParamBodyAngleY': -3},
+    'playful': {'ParamEyeROpen': 0, 'ParamMouthGrin': 1, 'add:ParamAngleZ': 8, 'add:ParamBrowRY': 0.3},
+    'curious': {'ParamEyeWide': 1, 'ParamMouthCurious': 1, 'add:ParamBrowLY': 0.6, 'add:ParamBrowRY': 0.6, 'add:ParamAngleZ': -6},
+    'concerned': {'ParamEyeTeary': 1, 'ParamMouthForm': -1, 'add:ParamBrowLY': -0.4, 'add:ParamBrowRY': -0.4, 'add:ParamAngleY': -4},
+    'annoyed': {'ParamEyeGlare': 1, 'ParamMouthAnnoyed': 1, 'add:ParamBrowLY': -0.6, 'add:ParamBrowRY': -0.6},
+    'sleepy': {'ParamEyeSleepy': 1, 'ParamMouthSleepy': 1, 'add:ParamAngleY': -6, 'add:ParamBodyAngleY': -3},
 }
 
 
@@ -42,15 +42,6 @@ def smooth(keys: list[tuple[float, float]]) -> list[float]:
         dt = (t1 - t0) / 3
         seg += [1, t0 + dt, v0, t1 - dt, v1, t1, v1]
         t0, v0 = t1, v1
-    return seg
-
-
-def step(keys: list[tuple[float, float]]) -> list[float]:
-    """(t, v) 키를 stepped 세그먼트로(값은 다음 키 시각까지 유지)."""
-    (t0, v0), *rest = keys
-    seg = [t0, v0]
-    for t1, v1 in rest:
-        seg += [2, t1, v1]
     return seg
 
 
@@ -126,14 +117,14 @@ def motions() -> dict[str, dict]:
         'ParamBreath': smooth([(0, 0), (0.8, 1), (2.0, 1), (3.0, 0)]),
         'ParamEyeLOpen': smooth([(0, 1), (0.8, 0), (2.0, 0), (2.6, 1)]),
         'ParamEyeROpen': smooth([(0, 1), (0.8, 0), (2.0, 0), (2.6, 1)]),
-        'ParamMouthVariant': step([(0, 0), (0.6, 1), (2.3, 0)]),
+        'ParamMouthO': smooth([(0, 0), (0.6, 1), (2.0, 1), (2.5, 0)]),
         'ParamSleeve': smooth([(0, 0), (0.8, -0.8), (2.0, -0.8), (3.0, 0)]),
         'ParamArmR': smooth([(0, 0), (0.8, 1.0), (2.0, 1.0), (3.0, 0)]),
         'ParamArmL': smooth([(0, 0), (0.8, 1.0), (2.0, 1.0), (3.0, 0)]),
     }, fade_in=0)
     yawn = motion3(3.2, {
-        'ParamEyeVariant': step([(0, 0), (0.4, 5), (2.8, 0)]),
-        'ParamMouthVariant': step([(0, 0), (0.6, 5), (2.6, 0)]),
+        'ParamEyeSleepy': smooth([(0, 0), (0.5, 1), (2.6, 1), (3.0, 0)]),
+        'ParamMouthSleepy': smooth([(0, 0), (0.7, 1), (2.4, 1), (2.9, 0)]),
         'ParamAngleY': smooth([(0, 0), (1.0, 10), (2.2, 10), (3.2, 0)]),
         'ParamBrowLY': smooth([(0, 0), (1.0, 0.5), (2.2, 0.5), (3.2, 0)]),
         'ParamBrowRY': smooth([(0, 0), (1.0, 0.5), (2.2, 0.5), (3.2, 0)]),
@@ -143,8 +134,8 @@ def motions() -> dict[str, dict]:
         'ParamArmL': smooth([(0, 0), (1.0, 0.5), (2.2, 0.5), (3.2, 0)]),
     }, fade_in=0)
     react_tap = motion3(1.4, {
-        'ParamEyeVariant': step([(0, 2), (1.0, 0)]),
-        'ParamMouthVariant': step([(0, 1), (1.0, 0)]),
+        'ParamEyeWide': smooth([(0, 1), (0.7, 1), (1.1, 0)]),
+        'ParamMouthO': smooth([(0, 1), (0.6, 1), (1.0, 0)]),
         'ParamAngleY': smooth([(0, 0), (0.15, 10), (0.9, 6), (1.4, 0)]),
         'ParamBodyAngleY': smooth([(0, 0), (0.15, 4), (1.4, 0)]),
         'ParamEarL': smooth([(0, 0), (0.15, 1), (1.0, 1), (1.4, 0)]),

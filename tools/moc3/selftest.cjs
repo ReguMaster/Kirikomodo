@@ -68,6 +68,8 @@ if (fs.existsSync(atlas)) {
   assert.deepStrictEqual(keff('ParamMouthOpenY=1'), ['Mouth_Line', 'Mouth_Open'], '입 열림')
   assert.deepStrictEqual(keff('ParamTail=1'), ['Tail'], '꼬리')
   assert.ok(keff('ParamBodyAngleX=10').includes('Torso'), '몸 기울기')
+  assert.deepStrictEqual(keff('ParamEyeWide=1').filter((id) => id.startsWith('Eye_L_')), ['Eye_L_White', 'Eye_L_Iris', 'Eye_L_Lashes', 'Eye_L_Wide'], '눈 변형 가중치는 기본 눈과 교차 페이드')
+  assert.deepStrictEqual(keff('ParamMouthGrin=1'), ['Mouth_Line', 'Mouth_Grin'], '입 변형 가중치는 기본 입과 교차 페이드')
   assert.deepStrictEqual(keff('ParamArmR=1'), ['Sleeve_R'], '오른쪽 소매 스윙')
   assert.deepStrictEqual(keff('ParamArmL=1'), ['Sleeve_L'], '왼쪽 소매 스윙')
   console.log('kiriko.py: Core VALID, head/eye/mouth/tail/body parameters move the intended drawables')

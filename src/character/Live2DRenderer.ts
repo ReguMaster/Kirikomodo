@@ -21,6 +21,7 @@ interface ActiveMotion {
 interface ActiveExpression {
   data: ExpressionData
   start: number
+  prev?: ExpressionData
 }
 
 interface Mesh {
@@ -225,7 +226,7 @@ export class Live2DRenderer implements CharacterRenderer {
       name && this.expressions[name]
         ? this.expressions[name]
         : { fadeIn: EMOTION_FADE_S, params: Object.entries(EMOTION_PARAMS[emotion] ?? {}).map(([id, value]) => ({ id, value, blend: 'Add' as const })) }
-    this.expression = { data, start: performance.now() }
+    this.expression = { data, start: performance.now(), prev: this.expression?.data }
   }
 
   playMotion(motion: Motion, priority = 0): Promise<boolean> {
@@ -440,6 +441,12 @@ export class Live2DRenderer implements CharacterRenderer {
     p.values[i] = fn(p.values[i])
   }
 
+  private applyExpression(data: ExpressionData, w: number): void {
+    for (const { id, value, blend } of data.params) {
+      this.param(id, (v) => (blend === 'Add' ? v + value * w : blend === 'Multiply' ? v * (1 + (value - 1) * w) : v + (value - v) * w))
+    }
+  }
+
   private frame = (now: number): void => {
     this.raf = requestAnimationFrame(this.frame)
     const interval = 1000 / this.options.fpsLimit
@@ -486,11 +493,11 @@ export class Live2DRenderer implements CharacterRenderer {
 
     // 3. 표정
     if (this.expression) {
-      const { data, start } = this.expression
+      const { data, start, prev } = this.expression
       const w = data.fadeIn > 0 ? Math.min(1, (now - start) / 1000 / data.fadeIn) : 1
-      for (const { id, value, blend } of data.params) {
-        this.param(id, (v) => (blend === 'Add' ? v + value * w : blend === 'Multiply' ? v * (1 + (value - 1) * w) : v + (value - v) * w))
-      }
+      if (prev && w < 1) this.applyExpression(prev, 1 - w) // 이전 표정은 새 표정이 들어오는 동안 페이드아웃
+      else if (prev) this.expression.prev = undefined
+      this.applyExpression(data, w)
     }
 
     // 4. 시선·호흡·깜빡임
