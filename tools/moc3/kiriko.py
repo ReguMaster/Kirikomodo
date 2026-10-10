@@ -22,6 +22,10 @@ ATLAS = os.path.join(ROOT, 'assets/models/private/kiriko/atlas.json')
 PLAN = os.path.join(ROOT, 'assets/live2d-authoring/input/layer-plan.json')
 TEX = 4096
 
+# 눈 감김 키: 0.15~0.3 사이에서만 기본 눈↔감은 눈이 교차한다(좁아야 깜빡이는 중에 회색 이중상이 안 남는다)
+EYE_KEYS = [0, 0.15, 0.3, 1]
+EYE_OPEN_W = [0, 0, 1, 1]       # 눈 뜸 → 기본 눈·변형 불투명도
+EYE_SQUASH = [0.06, 0.3, 0.5, 1.0]   # 눈 뜸 → 눈 레이어 세로 축소
 EYE_VARIANTS = {'Half': 'ParamEyeHalf', 'Wide': 'ParamEyeWide', 'Teary': 'ParamEyeTeary', 'Glare': 'ParamEyeGlare', 'Sleepy': 'ParamEyeSleepy'}  # 눈 변형 접미사 → 가중치(Closed 는 EyeOpen=0)
 MOUTH_VARIANTS = {'Mouth_O': 'ParamMouthO', 'Mouth_Grin': 'ParamMouthGrin', 'Mouth_Curious': 'ParamMouthCurious',
                   'Mouth_Annoyed': 'ParamMouthAnnoyed', 'Mouth_Sleepy': 'ParamMouthSleepy'}
@@ -57,7 +61,8 @@ ARM_KEYS = [-1, -0.5, 0, 0.5, 1]
 ARM_DEG = [-4, -2, 0, 3.5, 7]
 ARM_PIVOT = {'Sleeve_R': (1000, 1340), 'Sleeve_L': (1640, 1340)}   # 어깨. R 은 화면 왼쪽(바깥 = -x), L 은 오른쪽
 ARM_TOP, ARM_LEN = 1300, 1706                                       # 소매 위끝 y, 길이. 아래로 갈수록 더 휜다
-PARALLAX = {'Face_Base': 0.35, 'Eye': 0.7, 'Brow': 0.65, 'Mouth': 0.6, 'Neck': 0.0, 'Hair_Knot': -0.1, 'Ear': -0.15, 'Mask_Fox': -0.1}
+# 깊이 시차(px/° 계수). 레이어끼리 상대적으로 밀리면 그 사이로 이음새·구멍이 드러나므로 작게 둔다(처음 0.35~0.7 이었을 때 눈·입이 피부 위에서 미끄러졌다)
+PARALLAX = {'Face_Base': 0.08, 'Eye': 0.18, 'Brow': 0.16, 'Mouth': 0.15, 'Neck': 0.0, 'Hair_Knot': -0.03, 'Ear': -0.04, 'Mask_Fox': -0.03}
 
 
 def lerp_key(v: float, keys: list[float], vals: list[float]) -> float:
@@ -113,7 +118,7 @@ class Kiriko:
         for pid in ('ParamAngleX', 'ParamAngleY', 'ParamAngleZ'):
             P(pid, -30, 30, 0, keys=[-30, 0, 30])
         for pid in ('ParamEyeLOpen', 'ParamEyeROpen'):
-            P(pid, 0, 1, 1, keys=[0, 0.3, 1])
+            P(pid, 0, 1, 1, keys=EYE_KEYS)
         for pid in ('ParamEyeBallX', 'ParamEyeBallY', 'ParamBrowLY', 'ParamBrowRY', 'ParamMouthForm'):
             P(pid, -1, 1, 0, keys=[-1, 0, 1])
         P('ParamMouthOpenY', 0, 1, 0, keys=[0, 0.3, 1])
@@ -193,7 +198,7 @@ class Kiriko:
             y -= v['ParamBrow' + lid[-1] + 'Y'] * 12
         if lid.startswith('Eye_') and 'Closed' not in lid:
             side = lid[4]
-            s = lerp_key(v['ParamEye' + side + 'Open'], [0, 0.3, 1], [0.06, 0.5, 1.0])
+            s = lerp_key(v['ParamEye' + side + 'Open'], EYE_KEYS, EYE_SQUASH)
             cy = y0 + h * 0.8
             y = cy + (y - cy) * s
             if 'Iris' in lid:
@@ -213,7 +218,7 @@ class Kiriko:
         if lid.startswith('Eye_'):
             side = lid[4]
             op = v['ParamEye' + side + 'Open']
-            open_w = lerp_key(op, [0, 0.3, 1], [0, 1, 1])
+            open_w = lerp_key(op, EYE_KEYS, EYE_OPEN_W)
             if lid.endswith('Closed'):
                 return 1 - open_w
             tag = lid.split('_', 2)[2]

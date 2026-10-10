@@ -136,6 +136,14 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - **측정**(앱에서 6초 idle·look·headTilt 샘플링): 뿌리 ±0.2~0.65, 끝 ±0.5~0.9(포화 없음), 좌우 RMS 차이 back 0.11·side 0.12·tassel 0.17(look 중엔 0.16·0.18·0.25) — 한쪽이 다른 쪽을 그대로 따라가지 않는다. `test:e2e:live2d` 에 "좌우 가닥이 다르게 흔들림" 검사 추가, `test:moc3` 에 독립성 검사 추가.
 - 알려진 잔여물: 고개를 기울이면 술 왼쪽에 흐린 붉은 번짐이 보인다(Tassel 복원 영역, 휴지 자세에서는 가려짐). 입 변형 Mouth_Grin·Mouth_Sleepy 가 `expr.box` 에서 평평하게 잘리는 것도 그대로다(`make_layer_plan.py` MOUTH_EXPR_BOX 를 넓히고 `cut_parts.py` 재실행 필요).
 
+## 고개·깜빡임 이음새 정리 (2026-10-10, 사용자 지적 "성형 실패한 키리코")
+- **발견**: 이전 검수는 정지 표정 컷과 작은 각도의 모션만 봤다. 실제 앱에서는 마우스가 캐릭터에서 조금만 멀어져도 시선 값이 ±1 이 되어 `ParamAngleX` 가 ±30 까지 올라가고(`Live2DRenderer` 의 `lx*30`), 그때 ① 눈·입이 시차(0.35~0.7)로 피부판 위에서 미끄러지고 ② Face_Base 가 한쪽 눈(화면 왼쪽)의 바깥 절반을 덮지 못해 흰 배경이 사각형으로 비치고 ③ 사각형으로 복원한 Neck 의 모서리가 턱 아래에서 드러났다. 깜빡임 중간(눈 뜬 정도 0.1~0.5)에는 눈이 눌리며 그 밑의 거칠게 복원된 Face_Base(주황 얼룩)가 보이고, 0.3 이하의 긴 교차 페이드가 회색 이중상을 만들었다.
+- **`tools/live2d-authoring/refine_face.py`**(`cut_parts.py` 가 `clean_eyes` 다음 자동 호출): ① Face_Base 에서 눈이 놓일 수 있는 영역(기본 눈+변형 12장의 합집합) 중 **휴지 자세에서 위 레이어가 알파 255 로 완전히 덮는 픽셀**을 피부색 필드로 다시 칠한다(겉모습 불변 — `make_atlas` 재조립 diff 0 유지). ② Neck 은 원본 픽셀만 두고 복원 부분을 원본 목 색의 매끈한 필드로 바꾸며 바깥 경계를 28px 페더. 원본은 `assets/live2d-authoring/output/face-refine/orig/` 에 보관.
+- **리그**(`kiriko.py`): 시차 Face_Base 0.08·Eye 0.18·Brow 0.16·Mouth 0.15·Hair_Knot/Mask -0.03·Ear -0.04(이전 0.35·0.7·0.65·0.6·-0.1·-0.15·-0.1). `ParamEyeL/ROpen` 키 [0,0.15,0.3,1] — 기본 눈↔감은 눈 교차를 0.15~0.3 구간(약 1~2프레임)으로 좁힘, 눈 세로 축소 [0.06,0.3,0.5,1.0].
+- **시선 각도 per-model**: `model-map.json` 의 `look: {angle, body}`(앱 `Live2DRenderer`, 기본 30·10 은 Haru 용). 키리코는 10·4 — 평면 컷아웃은 고개를 크게 돌리면 이음새가 드러난다.
+- **QA 훅**: `window.__kmdLive2D.pin({ParamX: v})` 로 임의 자세를 고정해 캡처한다(캡처에 150ms 가 걸려 깜빡임 같은 짧은 동작의 중간은 타이밍으로 못 잡는다). 시선 확인은 `webContents.send('cursor:moved', {x, y})`.
+- 검증: `test:moc3` 에 "ParamAngleX=30 에서 눈·입·앞머리가 Face_Base 에서 20px 이상 미끄러지지 않음"(옛 값은 ≈34px) 검사 추가. 시선 7방향·눈 뜬 정도 7단계를 고해상도로 캡처해 사각형 패치·주황 얼룩이 사라진 것을 확인. 남은 것: 눈 바깥 모서리 옆의 아주 가는 흰 틈(1~2px), 소매 안쪽 분리 잔여물.
+
 ## 상태
 - 포맷 해독·라운드트립 writer·**처음부터 생성하는 생성기**까지 완료(2026-10-10). `gen.py` 의 `Builder` 로 만든 기하 도형 모델을 Core 가 VALID 로 열고 7개 파라미터가 의도한 드로어블만 움직인다(`npm run test:moc3`). 아직 앱에서 렌더(합격 기준 3)는 안 봤다 — 텍스처가 없는 도형 모델이라 키리코 파츠가 준비되면 본다.
 - TASKS 4·5·6·7 은 위 결과 절 참조. TASKS 8·9·10 은 위 물리 결과·검증 결과 절 참조. **예약 작업 10건 모두 완료.** (아래는 6 시작 전 메모): `Builder` 에 `assets/models/private/kiriko/atlas.json` 의 레이어별 rect/uv 로 파츠 메시·UV 를 넣고 디포머·키폼을 붙인다. 레이어를 바꿀 때는 JSON 을 손으로 고치지 말고 `make_layer_plan.py` 수정 → 재생성 → `cut_parts.py`(≈5분) → `make_atlas.py` 순서로 다시 만든다. 생성기에서 아직 Core 로 안 본 것: 마스크·블렌드 모드·reflect·글루.

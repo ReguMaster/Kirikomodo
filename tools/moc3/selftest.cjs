@@ -70,6 +70,12 @@ if (fs.existsSync(atlas)) {
   assert.ok(keff('ParamBodyAngleX=10').includes('Torso'), '몸 기울기')
   assert.deepStrictEqual(keff('ParamEyeWide=1').filter((id) => id.startsWith('Eye_L_')), ['Eye_L_White', 'Eye_L_Iris', 'Eye_L_Lashes', 'Eye_L_Wide'], '눈 변형 가중치는 기본 눈과 교차 페이드')
   assert.deepStrictEqual(keff('ParamMouthGrin=1'), ['Mouth_Line', 'Mouth_Grin'], '입 변형 가중치는 기본 입과 교차 페이드')
+  // 고개를 크게 돌려도 눈·입이 피부판 위에서 미끄러지면 이음새·구멍이 드러난다: 얼굴 부위 간 상대 이동은 20px 이하(워프 전단 ≈8px 포함, 옛 시차 값은 ≈34px)
+  const turned = JSON.parse((() => { const r = inspect(kmoc, '--json', 'ParamAngleX=30'); return r.stdout.slice(r.stdout.indexOf('{')) })()).setEffect.movedDrawables
+  const shift = (id) => turned.find((m) => m.id === id).dx * 2530
+  for (const id of ['Eye_R_White', 'Eye_L_White', 'Mouth_Line', 'Hair_Front']) {
+    assert.ok(Math.abs(shift(id) - shift('Face_Base')) <= 20, `${id} 가 Face_Base 에서 ${(shift(id) - shift('Face_Base')).toFixed(1)}px 미끄러져요`)
+  }
   assert.deepStrictEqual(keff('ParamHairBackR=-1'), ['Hair_Back_R'], '뒷머리 오른쪽 가닥은 왼쪽과 독립')
   assert.deepStrictEqual(keff('ParamHairBackLTip=-1'), ['Hair_Back_L'], '뒷머리 왼쪽 가닥 끝 굽힘')
   assert.deepStrictEqual(keff('ParamArmR=1'), ['Sleeve_R'], '오른쪽 소매 스윙')

@@ -20,6 +20,7 @@
 `python tools/moc3/kiriko.py` 한 번이면 `assets/models/private/kiriko/` 에 moc3·model3·exp3 7·motion3 10·physics3·model-map 을 모두 다시 쓴다. 레이어를 바꾸면 `make_layer_plan.py` → `cut_parts.py`(끝에서 `clean_eyes.py` 자동 실행) → `make_atlas.py` 뒤에 실행한다. 전체 순서와 결정 사항은 `docs/moc3-generation-handoff.md`.
 
 ## 알려진 한계
+- 시선 추적 각도는 `model-map.json` 의 `look`(10°·4°)으로 제한한다. 평면 컷아웃이라 고개를 크게 돌리면 이음새가 드러난다(이전엔 30° 로 돌려 얼굴이 망가졌다).
 - 몸통에 팔이 없어 손은 모은 채이고, 소매만 어깨에서 ±7° 휘두른다(진짜 손 흔들기는 새 아트 필요).
 - 렌더러는 가변 dt 1회 적분 물리(프레임 급락 시 공식 고정 스텝 분할 필요), 하드 스텐실 마스크, pose3/사운드/립싱크 미지원.
 - 분리 잔여물(Tassel_R 술 사이 머리카락, Apron 좌상단 조각 등)은 상위 레이어에 가려지는 위치라 미수정(handoff 문서 "남은 잔여물").

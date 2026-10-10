@@ -9,6 +9,7 @@ type Core = typeof Live2DCubismCore
 interface ModelMap {
   motions: Record<string, string>
   emotions: Record<string, string>
+  look?: { angle?: number; body?: number } // 시선 추적이 고개·몸에 주는 각도(°). 기본 30·10 — 평면 컷아웃 모델은 작게 잡아야 이음새가 안 드러난다
 }
 
 interface ActiveMotion {
@@ -93,7 +94,11 @@ async function fetchModelFile(modelId: string, rel: string, as: 'json' | 'buffer
   return as === 'json' ? res.json() : res.arrayBuffer()
 }
 
-type DebugWindow = Window & { __kmdLive2D?: { param: (id: string) => number | undefined; physics: boolean; blinking: () => boolean } }
+const finiteOr = (v: number | undefined, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
+
+type DebugWindow = Window & {
+  __kmdLive2D?: { param: (id: string) => number | undefined; physics: boolean; blinking: () => boolean; pin: (values: Record<string, number>) => void }
+}
 
 // Cubism Core 를 직접 다루는 최소 WebGL 렌더러. 포즈·모션 사운드는 지원하지 않는다.
 export class Live2DRenderer implements CharacterRenderer {
@@ -122,6 +127,7 @@ export class Live2DRenderer implements CharacterRenderer {
   private raf = 0
   private lastFrame = 0
   private nextBlinkAt = 0
+  private pinned: Record<string, number> = {} // e2e 가 임의 자세를 고정해 찍는 용도(빈 객체면 무시)
   private blinkStart = -1
   private resizeObserver: ResizeObserver | null = null
 
@@ -175,7 +181,12 @@ export class Live2DRenderer implements CharacterRenderer {
       this.lastFrame = performance.now()
       this.raf = requestAnimationFrame(this.frame)
       // e2e(tests/e2e/live2d.cjs)가 파라미터 값을 읽는 훅
-      ;(window as DebugWindow).__kmdLive2D = { param: this.paramAccess.get, physics: this.physics !== null, blinking: () => this.blinkStart >= 0 }
+      ;(window as DebugWindow).__kmdLive2D = {
+        param: this.paramAccess.get,
+        physics: this.physics !== null,
+        blinking: () => this.blinkStart >= 0,
+        pin: (values) => (this.pinned = values)
+      }
     } catch (err) {
       await this.dispose()
       throw err
@@ -281,7 +292,7 @@ export class Live2DRenderer implements CharacterRenderer {
     const mapRes = await fetch(modelFileUrl(id, MODEL_MAP_FILE)).catch(() => null)
     if (mapRes?.ok) {
       const raw = (await mapRes.json().catch(() => ({}))) as Partial<ModelMap>
-      this.map = { motions: { ...raw.motions }, emotions: { ...raw.emotions } }
+      this.map = { motions: { ...raw.motions }, emotions: { ...raw.emotions }, look: raw.look }
     }
     for (const [group, files] of Object.entries(summary.motions)) {
       this.motions[group] = await Promise.all(files.map(async (f) => parseMotion3(await fetchModelFile(id, f, 'json'))))
@@ -502,11 +513,13 @@ export class Live2DRenderer implements CharacterRenderer {
 
     // 4. 시선·호흡·깜빡임
     const { x: lx, y: ly } = this.look
-    this.param('ParamAngleX', (v) => v + lx * 30)
-    this.param('ParamAngleY', (v) => v - ly * 30)
+    const lookAngle = finiteOr(this.map.look?.angle, 30)
+    const lookBody = finiteOr(this.map.look?.body, 10)
+    this.param('ParamAngleX', (v) => v + lx * lookAngle)
+    this.param('ParamAngleY', (v) => v - ly * lookAngle)
     this.param('ParamEyeBallX', (v) => v + lx)
     this.param('ParamEyeBallY', (v) => v - ly)
-    this.param('ParamBodyAngleX', (v) => v + lx * 10)
+    this.param('ParamBodyAngleX', (v) => v + lx * lookBody)
     if (!reduceMotion) {
       this.param('ParamBreath', () => Math.sin(now / 1400) * 0.5 + 0.5)
       if (now >= this.nextBlinkAt) {
@@ -524,6 +537,7 @@ export class Live2DRenderer implements CharacterRenderer {
     }
     // 5. 물리(머리카락·술·꼬리 등): 고개·몸 각도를 입력으로 흔들림 파라미터를 덮어쓴다
     if (this.physics && !reduceMotion) stepPhysics(this.physics, this.paramAccess, dt / 1000)
+    for (const [id, value] of Object.entries(this.pinned)) this.param(id, () => value)
     for (let i = 0; i < p.count; i++) p.values[i] = Math.max(p.minimumValues[i], Math.min(p.maximumValues[i], p.values[i]))
 
     model.update()

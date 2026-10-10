@@ -9,7 +9,7 @@
    초기 이미지로 SDXL 인페인팅해 질감을 입힌다.
 3. expr 레이어는 output/expressions/<name>.full.png 에서 (원본 파츠 마스크 ∪ 변화 영역)을 잘라낸다.
 4. draw 레이어(눈썹)는 호를 직접 그린다.
-5. 눈 변형 레이어의 회색 잔상·먼 조각을 clean_eyes.py 로 정리한다(--no-clean 으로 생략).
+5. 눈 변형 레이어의 회색 잔상·먼 조각을 clean_eyes.py 로, 얼굴 피부판 구멍·목 이음새를 refine_face.py 로 정리한다(--no-clean 으로 생략).
 work/ 에 labelmap.png(라벨 오버레이)·unassigned.png 를 남긴다.
 """
 from __future__ import annotations
@@ -26,6 +26,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from clean_eyes import clean_all  # noqa: E402
+from refine_face import refine_all  # noqa: E402
 from common import DEFAULT_LAYERS, DEFAULT_PLAN, load_plan  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -340,6 +341,7 @@ class Cutter:
         print('split composite == base: OK')
         if do_clean and only is None:
             clean_all(out_dir)
+            refine_all(out_dir)
 
 
 def main() -> None:

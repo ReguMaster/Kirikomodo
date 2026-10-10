@@ -174,5 +174,6 @@ def write_all(out_dir: str) -> tuple[dict, list]:
         rel = f'motions/{name}.motion3.json'
         dump(rel, data)
         motion_refs[GROUP[name]] = [{'File': rel}]
-    dump('model-map.json', {'motions': GROUP, 'emotions': {name: name for name in EXPRESSIONS}})
+    # 시선 추적 각도: 평면 컷아웃은 고개를 크게 돌리면 이음새가 드러나므로 Haru 기본(30°·10°)보다 작게
+    dump('model-map.json', {'motions': GROUP, 'emotions': {name: name for name in EXPRESSIONS}, 'look': {'angle': 10, 'body': 4}})
     return motion_refs, expressions
