@@ -4,12 +4,12 @@
 
 ## 1. 배포 산출물
 
-`npm run dist` (electron-vite build → electron-builder 26, Electron 44.7.0, x64) 결과. `release/` 는 Git 무시 대상이므로 재생성해 사용한다.
+`npm run dist` (electron-vite build → electron-builder 26, Electron 44.7.0, x64) 결과(2026-10-10 재빌드, 키리코 모델 로더·physics3 포함). `release/` 는 Git 무시 대상이므로 재생성해 사용한다.
 
 | 파일 | 용도 | 크기 |
 |------|------|------|
-| `release/Kirikomodo-Setup-0.1.0.exe` | NSIS 설치 프로그램 (사용자별 설치, 설치 경로 변경 가능, 제거 시 AppData 유지) | 약 108 MB |
-| `release/Kirikomodo-0.1.0-portable.exe` | 포터블 단일 실행 파일 | 약 107 MB |
+| `release/Kirikomodo-Setup-0.1.0.exe` | NSIS 설치 프로그램 (사용자별 설치, 설치 경로 변경 가능, 제거 시 AppData 유지) | 약 113 MB |
+| `release/Kirikomodo-0.1.0-portable.exe` | 포터블 단일 실행 파일 | 약 112 MB |
 | `release/win-unpacked/Kirikomodo.exe` | 압축 전 실행 폴더 (asar 포함) | – |
 
 - 코드 서명 없음(`Get-AuthenticodeSignature` → NotSigned). 배포 시 SmartScreen 경고가 뜰 수 있다.
@@ -29,6 +29,8 @@
 | `npm test` (vitest) | 43/43 통과, 8 파일 |
 | `npm run build` | 통과 (`out/main`, `out/preload`, `out/renderer/{character,chat,settings}`) |
 | `npm run test:authoring` (Live2D 제작 도구 자체검증) | 통과 |
+| `npm run test:moc3` (moc3 writer·키리코 모델 Core 검증) | 통과 |
+| `npm run test:e2e:live2d` (키리코 모델 실렌더링·표정·모션·물리) | 통과 (캡처 육안 확인) |
 | `npm run test:e2e` (실앱 E2E, 임시 userData) | 29/29 통과 |
 | `npm run dist` | 통과 (NSIS + portable) |
 
@@ -52,14 +54,14 @@ E2E(`tests/e2e/smoke.cjs`)가 확인한 항목: 손상 설정 → `.bak` 복구�
 | 행동 시스템 (시간대·조용한 시간·방해 금지·선제 발화 제한) | 완료 | 장시간 상주 안정성 미검증 |
 | 규칙 기반 대화·말풍선·채팅창 | 완료 | 자유 자연어 이해 없음(설계상) |
 | 설정 화면·SQLite 기록·JSON 내보내기·예외 복구 | 완료 | |
-| Live2D 모델 로더 (`kmd-model://`, 가져오기, 자체 WebGL 렌더러) | 완료 (샘플 Haru 실렌더링 검증) | 키리코 모델은 미제작 |
-| Live2D 파츠 분리·제작 파이프라인 (Python CLI) | 도구 완료, 모델 미완성 | `NEEDS_MANUAL_QA` / `REQUIRES_EDITOR` |
+| Live2D 모델 로더 (`kmd-model://`, 가져오기, 자체 WebGL 렌더러, physics3) | 완료 (Haru·키리코 실렌더링 검증) | 표정 7·모션 10·물리 e2e 통과 |
+| 키리코 Live2D 모델 (Editor 없이 moc3 직접 생성, `tools/moc3/`) | 완료 | 모델 파일은 Git 무시 `assets/models/private/kiriko/`, `docs/model-production-status.md` |
 | Windows 패키징 (NSIS + portable) | 완료 | 코드 서명 없음 |
 
 ## 4. 미완료·미구현 항목
 
-- **Live2D 실모델**: 완성 파츠 PNG 0/51, Cubism Editor 리깅·`.moc3` 내보내기 미수행. 배포 가능한 원화 없음(`docs/asset-rights.md`). 현재 앱은 항상 플레이스홀더로 동작한다.
-- **Live2D 런타임 미지원**: physics3/pose3/사운드/립싱크(파일은 복사만), 반전 마스크(하드 스텐실만). 샘플 모델 렌더링은 검증했으나 모션·표정·시선 동작은 미확인.
+- **키리코 모델 배포**: 모델·텍스처는 원화 권리(`docs/asset-rights.md`) 때문에 저장소·설치 파일에 포함하지 않는다. 사용자가 설정 > 모델 > "가져오기"로 `assets/models/private/kiriko/kiriko.model3.json` 을 불러와야 하며, 그 전까지 앱은 플레이스홀더로 동작한다.
+- **Live2D 런타임 미지원**: pose3/사운드/립싱크(파일은 복사만), 반전 마스크(하드 스텐실만). 물리는 가변 dt 1회 적분(프레임 급락 시 고정 스텝 분할 필요).
 - **설정 항목 중 미구현**: 하드웨어 가속 진단, 소리 끄기(음성 기능 없음), 언어 선택(한국어 고정). `user_profile` 테이블은 사용처가 없어 만들지 않음.
 - **검증 범위 밖**: NSIS 설치/제거, 실제 두 번째 모니터 분리·DPI 변경·절전 복귀, 수 시간 상주, 실제 데스크톱에서의 클릭 통과 체감.
 - 로그 파일명이 UTC 날짜 기준(로컬 날짜와 어긋날 수 있음, 사소).
@@ -67,7 +69,7 @@ E2E(`tests/e2e/smoke.cjs`)가 확인한 항목: 손상 설정 → `.bak` 복구�
 ## 5. 수동 작업 필요 사항
 
 1. ~~Cubism Core 배치~~ — 불필요. `external/live2dcubismcore/` 에 포함돼 있고 패키징 시 앱에 들어간다(출처·라이선스는 그 폴더 README). 모델만 설정 > 모델 > "가져오기" 로 넣으면 된다.
-2. **키리코 모델 제작**: 원화 확보(권리 확인) → `tools/live2d-authoring/` 파이프라인으로 파츠 PSD 조립 → Cubism Editor 에서 리깅·`.model3.json` + `.moc3` 내보내기 → 설정 > 모델 > "가져오기". 절차는 `docs/live2d-authoring.md`, 현황은 `docs/model-production-status.md`.
+2. **키리코 모델 가져오기**: `python tools/moc3/kiriko.py` 로 재생성(아틀라스가 있을 때) → 설정 > 모델 > "가져오기"에서 `assets/models/private/kiriko/kiriko.model3.json` 선택. 현황은 `docs/model-production-status.md`.
 3. **실기 확인**: 설치 프로그램 설치/제거, 다중 모니터·DPI 변경·절전 복귀 후 캐릭터 위치, 시작 프로그램 등록(패키징 빌드에서만 동작), 투명창 클릭 통과 체감.
 4. **배포 준비**: 코드 서명 인증서 적용, `appId`(`io.github.regumaster.kirikomodo`) 최종 확정, `build/` 리소스 폴더 추가 여부 결정.
 

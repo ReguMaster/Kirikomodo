@@ -59,13 +59,13 @@
 - 검증: vitest 38개(DB 마이그레이션·재오픈·limit 정렬 포함), typecheck, build, 실앱 스모크(`kirikomodo.sqlite` 생성 로그), 오프스크린 설정 화면 조작(토글→`settings:update`, 내보내기→`chat:export`, FPS select).
 - 미구현: `user_profile` 테이블(사용처 없음), 하드웨어 가속 진단, 소리 끄기(음성 기능 없음), 언어 선택(한국어 고정).
 
-### 9. Live2D 파츠 분리·제작 파이프라인 — 도구 완료, 모델 미완성
+### 9. Live2D 파츠 분리·제작 파이프라인 — 키리코 모델 완성 (moc3 직접 생성)
 - `tools/live2d-authoring/` Python CLI 9종(계획 생성·원화 분석·색/ROI 초안 분리·파츠 검증·미리보기·pure-Python PSD 조립·model3.json 검증·파이프라인·픽스처). 사용법 `docs/live2d-authoring.md`.
 - 레이어 계약 `docs/live2d-layer-contract.json` + 76 레이어 계획(`assets/live2d-authoring/input/layer-plan.json`, 파츠 목록 `docs/live2d-kiriko-parts.md` 자동 생성).
 - 검증: `npm run test:authoring`(픽스처 기반 자체검증 5종 통과), `run_pipeline.py --build-id 2026-10-10-r6` 전체 상태 `NEEDS_MANUAL_QA`.
-- 미완: 완성 파츠 PNG 0/51, Cubism Editor 리깅·moc3 내보내기(`REQUIRES_EDITOR`, Editor 미설치), 배포 가능한 원화 없음(`docs/asset-rights.md`). 산출물 폴더 `assets/live2d-authoring/output/` 은 Git 무시.
+- 2026-10-10 완성: Cubism Editor 없이 moc3 포맷을 해독(`docs/moc3-format.md`)해 `tools/moc3/`(moc3.py 라운드트립 writer·gen.py 생성기·kiriko.py 조립기·kiriko_anim.py·kiriko_physics.py)로 키리코 모델을 직접 생성. 원본 정리·표정 14종(`gen_expressions.py`), SAM+인페인팅 파츠 분리·복원 59 레이어(`cut_parts.py`), 아틀라스 2장(`make_atlas.py`). 모델·텍스처는 Git 무시(`assets/models/private/kiriko/`). 현황 `docs/model-production-status.md`, 절차 `docs/moc3-generation-handoff.md`.
 
-### 10. Live2D Cubism 모델 로더 — 검증 통과 (샘플 모델), 키리코 모델 미제작
+### 10. Live2D Cubism 모델 로더 — 검증 통과 (Haru 샘플 + 키리코 모델)
 - Cubism Core(`live2dcubismcore.min.js`)는 npm `live2dcubismcore@1.0.2`(jsDelivr 로도 제공)의 파일을 `external/live2dcubismcore/` 에 그대로 두고(출처·해시는 그 폴더 README) 앱이 그 파일을 쓴다. 패키징은 `electron-builder.yml` `extraResources` 로 `resources/external/` 에 복사한다. `%APPDATA%/Kirikomodo/live2d/` 에 같은 이름 파일을 두면 그쪽이 우선한다(`findCore()`). 둘 다 없으면 플레이스홀더 폴백 + 말풍선 안내.
 - npm 패키지에는 Haru 샘플 모델(moc3·텍스처·모션·physics, 약 130MB)도 있으나 저장소·앱에는 넣지 않는다.
 - **정정**: 이전 기록의 "npm 미배포·재배포 불가"는 둘 다 틀렸다. npm/jsDelivr 에 있고, 파일 헤더가 스스로 "Redistributable Code"(Live2D Proprietary Software License Agreement)라고 밝힌다. 확인 없이 적은 것이며, 그 때문에 실모델 렌더링 검증이 뒤로 밀렸다.
@@ -73,16 +73,18 @@
 - 렌더러: 전용 스킴 `kmd-model://`(`electron/services/models.ts`, `protocol.handle`, 경로 탈출 차단)로 Core/모델 파일 제공. `src/character/Live2DRenderer.ts` 가 Core 원시 API + 자체 WebGL(프리멀티플라이 텍스처, 블렌드 모드, 스텐실 마스크, renderOrders)로 그림. motion3/exp3 파싱(`live2dMotion.ts`), Idle 자동 루프, 깜빡임·호흡·시선, 표정 파일 없으면 내장 파라미터 표로 감정 표현, HitAreas 기반 hitTest. 모션 그룹 별칭 또는 모델 폴더의 `model-map.json`(선택)으로 앱 모션 이름 ↔ 그룹 매핑.
 - 검증: `tests/unit/live2d.test.ts`(model3 검사·거부 케이스·커브 보간·페이드) 포함 vitest 43개 통과, typecheck·build 통과.
 - 실모델 검증: `KMD_L2D_SAMPLE=<npm pack live2dcubismcore 를 푼 package 폴더> npm run test:e2e:live2d` (`tests/e2e/live2d.cjs`). 내장 Core 로 Haru 를 실제 가져오기 경로(`importModel`)로 불러와 `canvas.live2d-canvas` 마운트·폴백 없음·그려진 픽셀 비율을 확인하고, 캡처를 육안으로 확인했다(2026-10-10, Haru 전신이 정상 렌더링됨. 소프트웨어 렌더링 `disableHardwareAcceleration`).
-- 한계: physics3/pose3/사운드/립싱크 미지원(파일은 복사만), 마스크는 하드 스텐실(반전 마스크 미지원). 모션·표정·시선·hitTest 가 Haru 에서 의도대로 움직이는지는 아직 확인하지 않았다.
+- physics3: `src/character/live2dPhysics.ts`(공식 CubismPhysics 진자 알고리즘, 가변 dt 1회 적분)로 model3 `Physics` 파일을 해석해 매 프레임 적용(reduceMotion 이면 생략). 렌더러가 e2e 용 훅 `window.__kmdLive2D`(파라미터 읽기·physics 로드 여부)를 둔다.
+- 키리코 검증(2026-10-10): `KMD_L2D_MODEL=assets/models/private/kiriko/kiriko.model3.json npm run test:e2e:live2d` → 21파일 가져오기, 캔버스 렌더, 표정 6종 화면 변화, 모션 9종 화면 변화, physics3 로드·ParamHairBack/Tail/Tassel 변동 all passed. 캡처(표정·모션별)를 육안으로 확인해 2D 일러스트 그대로 표정·고개·입이 바뀌는 것을 봤다. **e2e 는 `out/` 을 쓰므로 `npm run build` 뒤에 실행해야 한다.**
+- 한계: pose3/사운드/립싱크 미지원(파일은 복사만), 마스크는 하드 스텐실(반전 마스크 미지원).
 
 ### 11. 통합 검증 — 검증 통과
-- 실행: `npm run typecheck` ✓, `npm test` 43/43 ✓, `npm run build` ✓, `npm run test:authoring` ✓, `npm run test:e2e` 29/29 ✓.
+- 실행(2026-10-10 최종): `npm run typecheck` ✓, `npm test` 45/45 ✓, `npm run build` ✓, `npm run test:authoring` ✓, `npm run test:moc3` ✓, `npm run test:e2e` 29/29 ✓, `npm run test:e2e:live2d`(키리코) all passed ✓.
 - E2E 하네스 `tests/e2e/smoke.cjs`: 임시 폴더를 userData로 지정해 실제 `out/main/main.js`를 띄운다(사용자 데이터 미접촉). 손상 settings.json→.bak 복구(AC-03), 없는 모델 폴백 말풍선(AC-11), 클릭 통과(AC-02), 드래그·위치 저장(AC-03), 트레이 메뉴(AC-04), 표정 미리보기(AC-05), 방해 금지·일일 3회 제한(AC-07), 규칙 대화·unknown 폴백(AC-08), SQLite 기록·전체 삭제(AC-09), 화면 밖 복귀(AC-13), 렌더러 강제 크래시 후 reload, 종료 시 위치 flush.
 - 발견·수정한 결함: (1) 메인 `speakProactive`가 방해 금지·조용한 시간을 검사하지 않아 렌더러 엔진을 우회하면 발화 가능 → 메인에서도 차단(f301356). (2) 종료 시 500ms 디바운스 중인 위치 저장이 유실(`flushSettings` 미대기) → `before-quit`에서 위치 flush 후 저장 완료를 기다려 종료(142dfe5). 두 결함 모두 수정 전 E2E 실패 → 수정 후 통과로 확인.
-- 미검증(NOT_TESTED): 실기 마우스 체감(hover/드래그는 `sendInputEvent` 주입), 실제 모니터 분리·DPI·절전, 장시간(수 시간) 상주 안정성, 키리코 Live2D 모델(미제작). 샘플 모델 렌더링은 10절에서 검증.
+- 미검증(NOT_TESTED): 실기 마우스 체감(hover/드래그는 `sendInputEvent` 주입), 실제 모니터 분리·DPI·절전, 장시간(수 시간) 상주 안정성. 키리코 모델 렌더링·표정·모션·물리는 10절에서 검증.
 
 ### 12. 패키징 — 검증 통과 (설치/제거 미검증)
-- `npm run dist` → `release/Kirikomodo-Setup-0.1.0.exe`(NSIS, 약 108 MB), `release/Kirikomodo-0.1.0-portable.exe`(약 107 MB), `release/win-unpacked/`. 코드 서명 없음.
+- `npm run dist` → `release/Kirikomodo-Setup-0.1.0.exe`(NSIS, 약 113 MB), `release/Kirikomodo-0.1.0-portable.exe`(약 112 MB, 2026-10-10 재빌드), `release/win-unpacked/`. 코드 서명 없음.
 - 검증: `win-unpacked/Kirikomodo.exe --user-data-dir=<임시>` 부팅 로그 ready, settings/sqlite/logs 가 임시 폴더에 생성, 메인 창 생성, 시작 프로그램 Run 항목 없음(기본 off). 실제 `%APPDATA%` 미접촉.
 - 미검증: NSIS 설치/제거 실행, 포터블 exe 실행, 실제 데스크톱 외관(비대화형 세션에서 캡처 불가).
 - 보고서: `docs/final-report.md`(산출물·검증 결과·구현 현황·미완료·수동 작업).

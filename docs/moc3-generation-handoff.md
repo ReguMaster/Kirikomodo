@@ -108,6 +108,10 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - **앱 로더**: `src/character/live2dPhysics.ts`(parsePhysics3·stepPhysics, 공식 CubismPhysics 진자 알고리즘: normalize→totalTranslation/Angle→updateParticles(airResistance 5)→directionToRadian 출력). `Live2DRenderer` 가 model3 FileReferences.Physics 를 읽어 매 프레임 시선·호흡 뒤·클램프 전에 적용(reduceMotion 이면 건너뜀). `inspectModel3` 에 `physics` 경로 추가. 가변 dt 1회 적분이라 프레임 급락 시 공식처럼 고정 스텝 분할이 필요할 수 있음.
 - **검증**: `tests/unit/live2dPhysics.test.ts`(고개 30° 입력에 머리카락 peak>0.2, 10s 뒤 <0.02 로 정지), typecheck·test 45 통과, `npm run test:moc3` 에 physics 설정 수 검사 추가 후 통과, `KMD_L2D_MODEL=assets/models/private/kiriko/kiriko.model3.json npm run test:e2e:live2d` 21파일 가져오기+렌더 all passed(캡처 정상). 아직 안 본 것: 앱에서 흔들림 모습(9번에서 육안·파라미터 로그로 확인).
 
+## 검증·문서 결과 (2026-10-10, TASKS 9·10)
+- **9**: `npm run build` 뒤 `KMD_L2D_MODEL=assets/models/private/kiriko/kiriko.model3.json npm run test:e2e:live2d` 확장판(표정 6종·모션 9종 화면 변화 >200px, physics3 로드, ParamHairBack/Tail/Tassel 변동) all passed. `KMD_SHOT_DIR` 캡처를 컨택트 시트로 육안 확인: 표정·고개·입이 2D 일러스트 그대로 또렷하게 바뀜. `npm run test:e2e` 29/29, typecheck 통과. **e2e 는 `out/` 을 쓰므로 build 를 먼저 해야 새 렌더러가 반영된다.**
+- **10**: `docs/model-production-status.md`·`implementation-progress.md`·`final-report.md` 를 실제 결과로 갱신, `npm run dist` 통과(`release/Kirikomodo-Setup-0.1.0.exe`·`Kirikomodo-0.1.0-portable.exe`).
+
 ## 상태
 - 포맷 해독·라운드트립 writer·**처음부터 생성하는 생성기**까지 완료(2026-10-10). `gen.py` 의 `Builder` 로 만든 기하 도형 모델을 Core 가 VALID 로 열고 7개 파라미터가 의도한 드로어블만 움직인다(`npm run test:moc3`). 아직 앱에서 렌더(합격 기준 3)는 안 봤다 — 텍스처가 없는 도형 모델이라 키리코 파츠가 준비되면 본다.
-- TASKS 4·5·6·7 은 위 결과 절 참조. TASKS 8 도 위 물리 결과 절 참조(physics3 생성 + 로더 지원 완료). **다음은 9(앱 가져오기·전체 검증·육안 확인)**. (아래는 6 시작 전 메모): `Builder` 에 `assets/models/private/kiriko/atlas.json` 의 레이어별 rect/uv 로 파츠 메시·UV 를 넣고 디포머·키폼을 붙인다. 레이어를 바꿀 때는 JSON 을 손으로 고치지 말고 `make_layer_plan.py` 수정 → 재생성 → `cut_parts.py`(≈5분) → `make_atlas.py` 순서로 다시 만든다. 생성기에서 아직 Core 로 안 본 것: 마스크·블렌드 모드·reflect·글루.
+- TASKS 4·5·6·7 은 위 결과 절 참조. TASKS 8·9·10 은 위 물리 결과·검증 결과 절 참조. **예약 작업 10건 모두 완료.** (아래는 6 시작 전 메모): `Builder` 에 `assets/models/private/kiriko/atlas.json` 의 레이어별 rect/uv 로 파츠 메시·UV 를 넣고 디포머·키폼을 붙인다. 레이어를 바꿀 때는 JSON 을 손으로 고치지 말고 `make_layer_plan.py` 수정 → 재생성 → `cut_parts.py`(≈5분) → `make_atlas.py` 순서로 다시 만든다. 생성기에서 아직 Core 로 안 본 것: 마스크·블렌드 모드·reflect·글루.
