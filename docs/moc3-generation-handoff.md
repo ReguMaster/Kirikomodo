@@ -76,6 +76,12 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - 이미지를 만드는 방법은 자유다. 이 PC 에는 NVIDIA RTX 3070(8GB), Python 3.11(Pillow·numpy·OpenCV)이 있고 torch 는 CPU 빌드다. 후보: ① CUDA torch + diffusers 로 애니메 모델(SD1.5/SDXL 계열) 생성 후 파츠 분리·가려진 부분 인페인팅, ② 코드로 직접 그린 벡터(SVG) 일러스트를 파츠별 레이어로 렌더(Electron/Chromium 이 SVG→PNG 렌더에 쓸 수 있음. cairosvg 는 libcairo 가 없어 바로는 안 됨), ③ 두 방식 혼합. 결과물은 반드시 이미지를 직접 열어 보고 평가하며, 눈·얼굴 비율·머리카락 뭉치·선 굵기·명암·색 일관성이 애니메 일러스트로 읽힐 때까지 반복한다. 독립 검수를 서브에이전트에 맡겨도 된다.
 - **애니메이션도 귀여워야 한다.** 눈 깜빡임·입 열림·시선·고개 기울임·호흡에 더해 표정(앱 감정 7종)·모션(앱 모션 10종)을 모두 만들고, 머리카락·여우 가면 장식·부적·옷자락 흔들림은 physics3 로 구현한다. 현재 앱 로더는 physics3 를 지원하지 않으므로(`src/character/Live2DRenderer.ts`) 로더도 확장해야 한다.
 
+## 원본 정리·표정 제작 결과 (2026-10-10, TASKS 4)
+- **정리본 `assets/reference/private/kiriko-base-prepared.png`** (2530×3006, Git 무시) = `tools/live2d-authoring/normalize_base.py` 산출. 알파 ≤8→0, ≥240→255, 투명 픽셀 RGB 는 최근접 불투명 색으로 채움(헤일로 방지), 좌·우·상 여백 160px, **하단 여백 0(절단면 = 캔버스 하단, 앱이 창 하단에서 클리핑)**. 흰·검정·초록 합성과 가장자리 확대(`output/base-check/`)를 Read 로 확인: 헤일로 없음, 머리카락 끝 온전. 보고서 `kiriko-base-prepared.report.json`. 이후 모든 파츠 작업은 이 정리본 좌표를 쓴다.
+- **표정 변형 `assets/live2d-authoring/output/expressions/<name>.png`** (얼굴 크롭 640², 원본 좌표 FACE=(970,560,1610,1200)) 와 `<name>.full.png`(정리본 전체에 되붙인 RGBA) = `tools/live2d-authoring/gen_expressions.py` 산출(Animagine XL 3.1 인페인팅, `.venv` CUDA torch, RTX 3070 에서 1024² 한 장 ≈15초, 모델 캐시 `output/hf-cache/` 6.8GB Git 무시). 채택 시드는 `picks.json`. 눈: closed·half·wink·wide·teary·glare, 입: mouth_open·mouth_o, 복합(앱 Emotion): happy(closed+웃는 입)·playful(wink+혀)·curious(wide+o 입)·concerned(teary+물결 입)·annoyed(glare+벌린 입)·sleepy(half+하품). 왼눈만 칠하고 오른눈은 미러.
+- 검수: 서브에이전트 독립 검토 2회 + Read 육안. 2차 검토에서 **wide·teary·glare·mouth_open·mouth_o·half·concerned·playful·annoyed·sleepy 합격**, closed·wink·happy 는 꺼풀 아래 분홍 잔상, curious 는 입 하단 윤곽 절단이 지적됨 → 눈 상자 하단 912·입 상자 하단 1015 로 늘려 closed·wink(시드 15)·happy·playful·curious·annoyed·sleepy 를 재생성하고 확대본을 Read 로 확인(잔상·절단 없음). **이 마지막 재생성분은 서브에이전트 3차 검토를 아직 안 받았다** — TASKS 5 시작 때 `contact.png` 를 한 번 더 독립 검토시킬 것. 눈 상자 위쪽 앞머리의 회색 탈색은 앞머리 레이어가 base 에서 따로 덮이므로 무시.
+- **눈썹은 디퓨전으로 실패**(앞머리를 지우고 이마를 그림). TASKS 5 에서 가는 호(분홍 계열, 머리색보다 조금 진하게)로 직접 그려 눈썹 파츠를 만든다.
+
 ## 상태
 - 포맷 해독·라운드트립 writer·**처음부터 생성하는 생성기**까지 완료(2026-10-10). `gen.py` 의 `Builder` 로 만든 기하 도형 모델을 Core 가 VALID 로 열고 7개 파라미터가 의도한 드로어블만 움직인다(`npm run test:moc3`). 아직 앱에서 렌더(합격 기준 3)는 안 봤다 — 텍스처가 없는 도형 모델이라 키리코 파츠가 준비되면 본다.
-- 다음은 TASKS 4(원본 정리·표정 제작) → 5(레이어 계약·파츠 PNG·아틀라스) → 6(키리코 moc3 조립: `Builder` 에 파츠별 메시·UV·디포머·키폼을 넣는다). 생성기에서 아직 Core 로 안 본 것: 마스크·블렌드 모드·reflect·글루.
+- TASKS 4 는 위 "원본 정리·표정 제작 결과" 참조. 다음은 5(레이어 계약·파츠 PNG·아틀라스) → 6(키리코 moc3 조립: `Builder` 에 파츠별 메시·UV·디포머·키폼을 넣는다). 생성기에서 아직 Core 로 안 본 것: 마스크·블렌드 모드·reflect·글루.
