@@ -68,6 +68,8 @@ if (fs.existsSync(atlas)) {
   assert.deepStrictEqual(keff('ParamMouthOpenY=1'), ['Mouth_Line', 'Mouth_Open'], '입 열림')
   assert.deepStrictEqual(keff('ParamTail=1'), ['Tail'], '꼬리')
   assert.ok(keff('ParamBodyAngleX=10').includes('Torso'), '몸 기울기')
+  assert.deepStrictEqual(keff('ParamArmR=1'), ['Sleeve_R'], '오른쪽 소매 스윙')
+  assert.deepStrictEqual(keff('ParamArmL=1'), ['Sleeve_L'], '왼쪽 소매 스윙')
   console.log('kiriko.py: Core VALID, head/eye/mouth/tail/body parameters move the intended drawables')
   const km3 = JSON.parse(fs.readFileSync(path.join(kdir, 'kiriko.model3.json'), 'utf8')).FileReferences
   assert.strictEqual(Object.keys(km3.Motions).length, 10, '모션 10종')

@@ -117,6 +117,12 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - **`tools/live2d-authoring/clean_eyes.py`**(`cut_parts.py` 가 끝에 자동 호출, `--no-clean` 으로 생략): ① 기본 눈(White/Iris/Lashes) ∪ 진한 갈색 선(V<0.34·S>0.2, 가장 큰 덩어리 25% 이상)을 18px 부풀린 영역 밖은 버리고 경계 페더. ② 열마다 가장 위의 어두운 선(닫기 폭 31 로 가시 제거) 위쪽에서 밝고 채도 있는 분홍 가닥(S≥0.18·V≥0.72)만 남기고 나머지는 눈 주변 피부색(없으면 Face_Base 의 중앙값)으로 교체. ③ 레이어 바깥 경계 알파 5px 페더. 원본 12장은 `assets/live2d-authoring/output/eye-clean/orig/` 에 보관(Git 무시).
 - 검증: 눈 12장 전후 비교 시트, 모델 재생성(`make_atlas.py` diff 0 → `kiriko.py`) 후 `test:moc3`·`test:authoring`(clean_eyes 합성 검사 추가)·`test:e2e:live2d` all passed, 고해상도 캡처로 happy·playful·concerned·annoyed·sleepy 의 잔상 소멸을 확인. 남은 것: 고개를 기울일 때 드러나는 분리 잔여물(술 옆 붉은 번짐 등), Mouth_Grin·Mouth_Sleepy 가 `expr.box` 에서 평평하게 잘리는 것.
 
+## 소매 스윙 (2026-10-10, 품질 개선 3단계)
+- 몸통 레이어에는 팔이 없고 큰 소매 2장(Sleeve_R/L)만 있어서 "팔 들기"는 불가능하다(손은 모은 채 Hands 한 장). 대신 **소매를 어깨 피벗에서 바깥으로 휘두르는 `ParamArmR/L`**(-1..1, 키 5개 → -4·-2·0·3.5·7°)을 추가했다. 어깨 쪽은 35%, 소매 끝은 100% 각도로 아래로 갈수록 더 휘고, 소매는 3×12 메시. 피벗 R(1000,1340)·L(1640,1340), `kiriko.py` 의 `ARM_*` 상수.
+- **한계 7°**: 소매 끝단이 캔버스 왼쪽 가장자리에서 225px 떨어져 있어 약 6.5° 를 넘기면 화면 밖으로 잘린다. 회전 디포머 대신 아트메시 키폼에 픽셀 공간 회전을 직접 계산해 넣었다(몸 워프의 정규화 좌표는 x·y 축척이 달라 회전이 찌그러지고, 키는 15° 간격이 되지 않도록 5개를 둠).
+- 모션: idle(±0.12 느린 흔들림), greet(0.5 로 살짝 벌림), **wave(ArmR 을 0.3~1.0 로 0.6초 주기로 흔듦)**, stretch(양쪽 1.0), yawn(0.5), reactTap(0.7 튕김), rest(-0.4 모음).
+- 고해상도 캡처(`KMD_HIRES=1`)로 stretch 의 소매 벌어짐을 확인했다. 소매가 벌어지면 소매 안쪽 아랫부분(손 높이)의 **분리 잔여물**(붉은 번짐·톱니 모양 모서리)이 더 잘 보인다. 휴지 자세에서도 있던 것이라 이번에 만든 문제는 아니며, 앱 기본 크기(320×400)에서는 3~6px 이라 눈에 띄지 않는다. 고치려면 Apron/Hakama 복원 영역을 소매 손목 근처에서 다시 만든다.
+
 ## 상태
 - 포맷 해독·라운드트립 writer·**처음부터 생성하는 생성기**까지 완료(2026-10-10). `gen.py` 의 `Builder` 로 만든 기하 도형 모델을 Core 가 VALID 로 열고 7개 파라미터가 의도한 드로어블만 움직인다(`npm run test:moc3`). 아직 앱에서 렌더(합격 기준 3)는 안 봤다 — 텍스처가 없는 도형 모델이라 키리코 파츠가 준비되면 본다.
 - TASKS 4·5·6·7 은 위 결과 절 참조. TASKS 8·9·10 은 위 물리 결과·검증 결과 절 참조. **예약 작업 10건 모두 완료.** (아래는 6 시작 전 메모): `Builder` 에 `assets/models/private/kiriko/atlas.json` 의 레이어별 rect/uv 로 파츠 메시·UV 를 넣고 디포머·키폼을 붙인다. 레이어를 바꿀 때는 JSON 을 손으로 고치지 말고 `make_layer_plan.py` 수정 → 재생성 → `cut_parts.py`(≈5분) → `make_atlas.py` 순서로 다시 만든다. 생성기에서 아직 Core 로 안 본 것: 마스크·블렌드 모드·reflect·글루.

@@ -3,6 +3,7 @@
 파라미터 규약은 kiriko.py: ParamEyeVariant(0 기본·1 Half·2 Wide·3 Teary·4 Glare·5 Sleepy),
 ParamMouthVariant(0 기본·1 O·2 Grin·3 Curious·4 Annoyed·5 Sleepy), ParamMouthForm(-1 Frown·0 Line·1 Smile), 감은 눈 = EyeOpen 0.
 정수 스위치 파라미터는 모션에서 stepped 세그먼트로만 바꾼다(보간 중 다른 변형이 비치지 않게).
+ParamArmR/L(소매 스윙, 어깨 피벗에서 바깥 +)은 idle·greet·wave·stretch·yawn·reactTap·rest 가 쓴다.
 """
 from __future__ import annotations
 
@@ -78,6 +79,8 @@ def motions() -> dict[str, dict]:
         'ParamHairSide': smooth(wave(0.25, D / 2, D, phase=0.8)),
         'ParamTassel': smooth(wave(0.3, D / 2, D, phase=1.5)),
         'ParamTail': smooth(wave(0.5, D, D, phase=0.3)),
+        'ParamArmR': smooth(wave(0.12, D, D, phase=0.5)),
+        'ParamArmL': smooth(wave(0.12, D, D, phase=2.0)),
         'ParamEarL': smooth([(0, 0), (2.0, 0), (2.15, 0.6), (2.4, 0), (D, 0)]),
         'ParamEarR': smooth([(0, 0), (4.1, 0), (4.25, 0.6), (4.5, 0), (D, 0)]),
     }, loop=True, fade_in=1.0)
@@ -98,9 +101,12 @@ def motions() -> dict[str, dict]:
         'ParamMouthForm': smooth([(0, 0), (0.4, 1), (2.2, 1), (2.6, 0)]),
         'ParamHairFront': smooth([(0, 0), (0.7, 0.8), (1.6, 0.3), (2.6, 0)]),
         'ParamTassel': smooth([(0, 0), (0.7, 0.9), (1.4, -0.3), (2.6, 0)]),
+        'ParamArmR': smooth([(0, 0), (0.6, 0.5), (1.6, 0.5), (2.6, 0)]),
+        'ParamArmL': smooth([(0, 0), (0.6, 0.5), (1.6, 0.5), (2.6, 0)]),
     })
     wv = motion3(2.4, {
         'ParamSleeve': smooth(wave(1.0, 0.6, 2.4)),
+        'ParamArmR': smooth(wave(0.35, 0.6, 2.4, offset=0.65)),   # 소매를 0.3~1.0 로 흔든다
         'ParamBodyAngleZ': smooth(wave(4, 1.2, 2.4)),
         'ParamAngleZ': smooth([(0, 0), (0.4, 8), (2.0, 8), (2.4, 0)]),
         'ParamMouthForm': smooth([(0, 0), (0.3, 1), (2.1, 1), (2.4, 0)]),
@@ -122,6 +128,8 @@ def motions() -> dict[str, dict]:
         'ParamEyeROpen': smooth([(0, 1), (0.8, 0), (2.0, 0), (2.6, 1)]),
         'ParamMouthVariant': step([(0, 0), (0.6, 1), (2.3, 0)]),
         'ParamSleeve': smooth([(0, 0), (0.8, -0.8), (2.0, -0.8), (3.0, 0)]),
+        'ParamArmR': smooth([(0, 0), (0.8, 1.0), (2.0, 1.0), (3.0, 0)]),
+        'ParamArmL': smooth([(0, 0), (0.8, 1.0), (2.0, 1.0), (3.0, 0)]),
     }, fade_in=0)
     yawn = motion3(3.2, {
         'ParamEyeVariant': step([(0, 0), (0.4, 5), (2.8, 0)]),
@@ -131,6 +139,8 @@ def motions() -> dict[str, dict]:
         'ParamBrowRY': smooth([(0, 0), (1.0, 0.5), (2.2, 0.5), (3.2, 0)]),
         'ParamEarL': smooth([(0, 0), (1.0, -0.6), (2.2, -0.6), (3.2, 0)]),
         'ParamEarR': smooth([(0, 0), (1.0, -0.6), (2.2, -0.6), (3.2, 0)]),
+        'ParamArmR': smooth([(0, 0), (1.0, 0.5), (2.2, 0.5), (3.2, 0)]),
+        'ParamArmL': smooth([(0, 0), (1.0, 0.5), (2.2, 0.5), (3.2, 0)]),
     }, fade_in=0)
     react_tap = motion3(1.4, {
         'ParamEyeVariant': step([(0, 2), (1.0, 0)]),
@@ -141,6 +151,8 @@ def motions() -> dict[str, dict]:
         'ParamEarR': smooth([(0, 0), (0.15, 1), (1.0, 1), (1.4, 0)]),
         'ParamTail': smooth([(0, 0), (0.2, 1), (0.6, -0.6), (1.0, 0.3), (1.4, 0)]),
         'ParamTassel': smooth([(0, 0), (0.2, 1), (0.6, -0.7), (1.0, 0.3), (1.4, 0)]),
+        'ParamArmR': smooth([(0, 0), (0.15, 0.7), (0.6, -0.2), (1.4, 0)]),
+        'ParamArmL': smooth([(0, 0), (0.15, 0.7), (0.6, -0.2), (1.4, 0)]),
     }, fade_in=0, fade_out=0.3)
     R = 5.0
     rest = motion3(R, {
@@ -151,6 +163,8 @@ def motions() -> dict[str, dict]:
         'ParamAngleZ': smooth(wave(3, R, R)),
         'ParamEarL': smooth([(0, 0), (1.5, -0.5), (R, -0.5)]),
         'ParamEarR': smooth([(0, 0), (1.5, -0.5), (R, -0.5)]),
+        'ParamArmR': smooth([(0, 0), (1.5, -0.4), (R, -0.4)]),
+        'ParamArmL': smooth([(0, 0), (1.5, -0.4), (R, -0.4)]),
     }, loop=True, fade_in=1.0)
     return {'idle': idle, 'blink': blink, 'look': look, 'greet': greet, 'wave': wv, 'headTilt': head_tilt,
             'stretch': stretch, 'yawn': yawn, 'reactTap': react_tap, 'rest': rest}
