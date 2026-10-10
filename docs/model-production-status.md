@@ -17,7 +17,7 @@
 | 런타임 통합 | ⏳ 로더 준비됨 | moc3 완성 후 설정 > 모델 > 가져오기로 로드 확인 |
 
 ## 진행 방향 (2026-10-10 결정)
-Cubism Editor 없이 `.moc3` 를 직접 생성한다. 판정기·해독 출발점·순서는 `docs/moc3-generation-handoff.md`. 생성 착수 전.
+Cubism Editor 없이 `.moc3` 를 직접 생성한다. 포맷 해독(`docs/moc3-format.md`)과 Haru 라운드트립 writer(`tools/moc3/moc3.py`)는 완료, 생성기는 착수 전. 순서는 `docs/moc3-generation-handoff.md`.
 
 ## 남은 사람 작업
 

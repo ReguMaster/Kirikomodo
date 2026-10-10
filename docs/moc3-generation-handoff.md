@@ -14,7 +14,8 @@
 | `external/live2dcubismcore/` | Core 4.2.2 (jsDelivr `live2dcubismcore@1.0.2`, "Redistributable Code"). 앱이 내장 사용 |
 | `tools/moc3/inspect-core.cjs` | **판정기.** moc3 를 Core 로 열어 유효성·파라미터·파츠·드로어블(정점 bbox)을 출력, `ParamX=값` 으로 파라미터를 움직여 어떤 드로어블이 변하는지 확인. Core 가 거부하면 `INVALID` + Core 로그, 종료 코드 1 |
 | `tools/moc3/dump-header.py` | 헤더·섹션 오프셋 표·개수 표·캔버스 값 덤프 |
-| `tools/moc3/selftest.cjs` (`npm run test:moc3`) | 판정기 자체검증. 0 바이트 파일 거부는 항상, Haru 통과는 `KMD_L2D_SAMPLE` 지정 시 |
+| `tools/moc3/selftest.cjs` (`npm run test:moc3`) | 판정기 자체검증. 0 바이트 파일 거부는 항상, 샘플 폴더가 있으면 Haru 통과 + `moc3.py` 라운드트립(바이트 동일·Core VALID) |
+| `tools/moc3/moc3.py` | moc3 파서·writer(stdlib). `dump` / `roundtrip` / `json`. 생성기의 기반 |
 | `tests/e2e/live2d.cjs` (`npm run test:e2e:live2d`) | 모델을 실제 가져오기 경로로 앱에 불러 그려지는지 확인. 생성한 모델의 최종 검증에 쓴다 |
 
 샘플 준비 (완료됨)
@@ -42,14 +43,15 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - 개수 표 시작 +0x80 부터 f32 5개 = `pixelsPerUnit, originX, originY, canvasWidth, canvasHeight` (Core `canvasinfo` 와 일치, 확정).
 - 판정기 동작: 4000 바이트로 자른 파일·0 바이트 파일은 Core 로그 `csmReviveMocInPlace: "size" is invalid` 로 거부된다. `Moc.fromArrayBuffer` 가 null 이면 거부.
 
-## 아직 모르는 것
-- 101 개 섹션 각각의 의미·원소 크기·정렬 규칙. 개수 표 대부분의 칸.
-- Core 가 요구하는 일관성 조건(오프셋 정렬, 인덱스 범위, 섹션 간 참조). 거부 시 Core 로그가 메시지를 주므로 시행착오로 좁힐 수 있다.
-- keyform/파라미터 바인딩 구조, 워프·회전 디포머 표현, 마스크, 드로어블 정점·UV·인덱스 배치.
+## 포맷 해독 결과 (2026-10-10 AutoPilot 1회차)
+- 공개 자료 2건(OpenL2D `moc3.hexpat` FDPL-1.0-US, `py-moc3` MIT)을 `assets/live2d-authoring/samples/moc3-refs/` 에 받아 두었다(Git 무시). 둘의 아트메시 필드 순서가 달라 Core 로 대조했고 hexpat 이 맞다.
+- 101개 섹션 전부의 의미·타입·정렬 규칙·바인딩 체인·키폼 블록 64 B 정렬 규칙을 `docs/moc3-format.md` 에 정리했다. 섹션 표 정본은 `tools/moc3/moc3.py` 의 `LAYOUT`.
+- `tools/moc3/moc3.py`: stdlib 파서·writer. Haru 라운드트립 **바이트 동일**, 재기록 파일 Core **VALID**, 파싱 값이 Core 보고(id·정점/인덱스 수·텍스처·마스크·parent·파라미터 범위·키 수)와 전부 일치. `npm run test:moc3` 가 라운드트립까지 검사한다.
+- 아직 모르는 것: Core 가 거부하는 조건 목록(생성기에서 시행착오), 회전 디포머 키폼의 origin/scale 단위.
 
 ## 권장 순서
-1. **섹션 해독**: Haru 를 기준으로 섹션별 크기를 개수 표 값과 나눠 원소 크기를 추정하고, Core API(`vertexPositions`, `indices`, `vertexUvs`, `parameters.keyValues` 등) 출력과 대조해 확정. 해독 결과는 이 문서나 `tools/moc3/` 에 계속 기록한다.
-2. **라운드트립**: Haru 를 파싱해 같은 바이트로 다시 쓰는 writer 를 만든다(전 섹션 해독 검증). `inspect-core` VALID 로 판정.
+1. ~~섹션 해독~~ 완료 → `docs/moc3-format.md`.
+2. ~~라운드트립~~ 완료 → `tools/moc3/moc3.py`, `npm run test:moc3`.
 3. **최소 모델**: 파츠 1·아트메시 1(쿼드)·파라미터 1 의 moc3 를 처음부터 생성 → Core 가 열고 렌더되는지 확인.
 4. **파라미터 반응**: keyform 으로 불투명도·정점 이동 → `inspect-core ParamX=값` 으로 움직임 확인. 이어서 워프 디포머(머리 흔들기·호흡), 눈 깜빡임·입 열기.
 5. **키리코 적용**: 파츠 PNG 로 메시·UV·텍스처 아틀라스 생성, `.model3.json` 작성, 앱 가져오기 + `test:e2e:live2d` 방식으로 육안 확인(캡처를 직접 볼 것).
@@ -74,5 +76,4 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - **애니메이션도 귀여워야 한다.** 눈 깜빡임·입 열림·시선·고개 기울임·호흡에 더해 표정(앱 감정 7종)·모션(앱 모션 10종)을 모두 만들고, 머리카락·여우 가면 장식·부적·옷자락 흔들림은 physics3 로 구현한다. 현재 앱 로더는 physics3 를 지원하지 않으므로(`src/character/Live2DRenderer.ts`) 로더도 확장해야 한다.
 
 ## 상태
-- 위 변경은 커밋하지 않았다(작업 트리에 남아 있음).
-- moc3 생성 자체는 **착수 전**이다. 이번 세션은 판정기·덤프 도구·해독 출발점까지만 했다.
+- 포맷 해독·라운드트립 writer 까지 완료(2026-10-10). **처음부터 생성하는 생성기(권장 순서 3·4)는 착수 전**이다. 생성기는 `moc3.py` 의 `Moc3` 를 채워 `to_bytes()` 하면 되고, 키폼 위치 블록 64 B 정렬·바인딩 체인 규칙은 `docs/moc3-format.md` 를 따른다.
