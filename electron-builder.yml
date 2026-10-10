@@ -1,0 +1,33 @@
+# appId는 공개 배포 전 소유 계정/도메인 기준 고유값으로 확정할 것 (명세 0.2-5)
+appId: io.github.regumaster.kirikomodo
+productName: Kirikomodo
+executableName: Kirikomodo
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  - resources/**
+extraResources:
+  - from: external
+    to: external
+asarUnpack: []
+win:
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-Setup-${version}.${ext}
+  shortcutName: Kirikomodo
+  deleteAppDataOnUninstall: false
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+publish: null

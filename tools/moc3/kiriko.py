@@ -1,0 +1,340 @@
+"""키리코 moc3 조립. atlas.json(레이어 rect/src) + layer-plan.json(z·그룹) 으로 파츠·메시·디포머·키폼을 만든다.
+
+사용: python tools/moc3/kiriko.py [out_dir]   기본 assets/models/private/kiriko → kiriko.moc3 + kiriko.model3.json
+검증: node tools/moc3/inspect-core.cjs assets/models/private/kiriko/kiriko.moc3 ParamAngleX=30
+
+좌표: 모든 키폼은 정리본 픽셀(2530×3006, y 아래 +)로 계산한 뒤 부모 좌표(모델 공간 또는 워프 격자 0..1)로 변환한다.
+표정 변형 레이어는 변형마다 0..1 가중치 파라미터(ParamEyeWide, ParamMouthGrin …)로 켠다. 기본 눈·입은 (1 - 가중치 합)으로 꺼져서
+표정이 바뀔 때 두 이미지가 교차 페이드한다.
+"""
+from __future__ import annotations
+
+import json
+import math
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gen import Builder  # noqa: E402
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ATLAS = os.path.join(ROOT, 'assets/models/private/kiriko/atlas.json')
+PLAN = os.path.join(ROOT, 'assets/live2d-authoring/input/layer-plan.json')
+TEX = 4096
+
+# 눈 감김 키: 0.15~0.3 사이에서만 기본 눈↔감은 눈이 교차한다(좁아야 깜빡이는 중에 회색 이중상이 안 남는다)
+EYE_KEYS = [0, 0.15, 0.3, 1]
+EYE_OPEN_W = [0, 0, 1, 1]       # 눈 뜸 → 기본 눈·변형 불투명도
+EYE_SQUASH = [0.06, 0.3, 0.5, 1.0]   # 눈 뜸 → 눈 레이어 세로 축소
+EYE_VARIANTS = {'Half': 'ParamEyeHalf', 'Wide': 'ParamEyeWide', 'Teary': 'ParamEyeTeary', 'Glare': 'ParamEyeGlare', 'Sleepy': 'ParamEyeSleepy'}  # 눈 변형 접미사 → 가중치(Closed 는 EyeOpen=0)
+MOUTH_VARIANTS = {'Mouth_O': 'ParamMouthO', 'Mouth_Grin': 'ParamMouthGrin', 'Mouth_Curious': 'ParamMouthCurious',
+                  'Mouth_Annoyed': 'ParamMouthAnnoyed', 'Mouth_Sleepy': 'ParamMouthSleepy'}
+HEAD_RECT = (700, 100, 1850, 1720)      # 머리 워프 격자(px). 귀·술·옆머리까지 포함
+HEAD_PIVOT = (1265, 1050)               # 목
+BODY_PIVOT = (1265, 3006)
+# 가닥형 흔들림(머리카락·술·부적): 레이어 → (뿌리 파라미터, 끝 파라미터, 뿌리 각 계수 rad, 끝 굽힘 계수 rad). 위가 고정된 막대가
+# θ(u) = a1·P1 + a2·P2·u 로 휘는 모델이라 x(u) = h·(a1·P1·u + ½·a2·P2·u²). 뿌리는 진자 첫 마디 각, 끝은 마지막 마디의 상대 굽힘(물리 출력).
+# 좌우 가닥은 파라미터(물리 설정)가 따로라 서로 어긋난 타이밍으로 흔들린다.
+HAIR = {
+    'Hair_Back_R': ('ParamHairBackR', 'ParamHairBackRTip', 0.05, 0.09),
+    'Hair_Back_L': ('ParamHairBackL', 'ParamHairBackLTip', 0.05, 0.09),
+    'Hair_Back_Center': ('ParamHairBack', 'ParamHairBackTip', 0.03, 0.05),
+    'Hair_Side_R': ('ParamHairSideR', 'ParamHairSideRTip', 0.06, 0.12),
+    'Hair_Side_L': ('ParamHairSideL', 'ParamHairSideLTip', 0.06, 0.12),
+    'Hair_Over_R': ('ParamHairSideR', 'ParamHairSideRTip', 0.05, 0.08),
+    'Hair_Over_L': ('ParamHairSideL', 'ParamHairSideLTip', 0.05, 0.08),
+    'Hair_Front': ('ParamHairFront', 'ParamHairFrontTip', 0.03, 0.06),
+    'Tassel_R': ('ParamTasselR', 'ParamTasselRTip', 0.08, 0.15),
+    'Tassel_L': ('ParamTasselL', 'ParamTasselLTip', 0.08, 0.15),
+    'Mask_Tassel': ('ParamTasselL', 'ParamTasselLTip', 0.07, 0.12),
+    'Ofuda': ('ParamOfuda', 'ParamOfudaTip', 0.09, 0.14),
+}
+HAIR_PARAMS = list(dict.fromkeys(pid for spec in HAIR.values() for pid in spec[:2]))
+# 단순 흔들림(옷): 레이어 → (파라미터, 진폭 px). 위가 고정되고 아래로 갈수록 t² 로 커진다
+SWAY = {
+    'Apron': ('ParamSkirt', 25, 'top'), 'Hakama': ('ParamSkirt', 25, 'top'),
+    'Ribbon_Waist': ('ParamRibbon', 15, 'top'), 'Bell_Chest': ('ParamRibbon', 12, 'top'),
+    'Sleeve_R': ('ParamSleeve', 18, 'top'), 'Sleeve_L': ('ParamSleeve', 18, 'top'),
+}
+# 소매 펄럭임(ParamArmR/L): 소매 바깥쪽·아래쪽이 바깥(+)으로 벌어진다. 키 값 → 바깥 아래 끝(밑단 바깥 모서리)의 이동 px.
+# 소매와 Apron 은 같은 큰 겉옷을 분리 때 임의의 직선으로 나눈 것이라, 소매를 통째로 회전·이동하면 그 경계를 따라 옷이 찢어져 보인다.
+# 그래서 안쪽 가장자리(Apron 과 만나는 쪽)는 고정하고 바깥으로 갈수록(u^1.4)·아래로 갈수록(t^1.2) 더 벌린다.
+ARM_KEYS = [-1, -0.5, 0, 0.5, 1]
+ARM_PX = [-30, -15, 0, 50, 90]
+ARM_INNER = {'Sleeve_R': 1249, 'Sleeve_L': 1400}    # 소매 안쪽 가장자리 x(몸 중심 쪽)
+ARM_OUTER = {'Sleeve_R': 225, 'Sleeve_L': 2358}     # 소매 바깥 가장자리 x
+ARM_TOP, ARM_LEN = 1300, 1706                       # 소매 위끝 y, 길이
+# 깊이 시차(px/° 계수). 레이어끼리 상대적으로 밀리면 그 사이로 이음새·구멍이 드러나므로 작게 둔다(처음 0.35~0.7 이었을 때 눈·입이 피부 위에서 미끄러졌다)
+PARALLAX = {'Face_Base': 0.08, 'Eye': 0.18, 'Brow': 0.16, 'Mouth': 0.15, 'Neck': 0.0, 'Hair_Knot': -0.03, 'Ear': -0.04, 'Mask_Fox': -0.03}
+
+
+def lerp_key(v: float, keys: list[float], vals: list[float]) -> float:
+    for (k0, v0), (k1, v1) in zip(zip(keys, vals), zip(keys[1:], vals[1:])):
+        if v <= k1:
+            return v0 if k1 == k0 else v0 + (v1 - v0) * (v - k0) / (k1 - k0)
+    return vals[-1]
+
+
+def rot(px, py, cx, cy, deg):
+    a = math.radians(deg)
+    dx, dy = px - cx, py - cy
+    return cx + dx * math.cos(a) - dy * math.sin(a), cy + dx * math.sin(a) + dy * math.cos(a)
+
+
+def grid_pts(x0, y0, w, h, cols, rows):
+    return [(x0 + w * i / cols, y0 + h * j / rows) for j in range(rows + 1) for i in range(cols + 1)]
+
+
+def grid_idx(cols, rows):
+    out = []
+    for j in range(rows):
+        for i in range(cols):
+            a = j * (cols + 1) + i
+            b, c, d = a + 1, a + cols + 1, a + cols + 2
+            out += [a, b, d, a, d, c]
+    return out
+
+
+class Kiriko:
+    def __init__(self):
+        atlas = json.load(open(ATLAS, encoding='utf-8'))
+        plan = json.load(open(PLAN, encoding='utf-8'))
+        self.W, self.H = atlas['canvas']['width'], atlas['canvas']['height']
+        self.textures = atlas['textures']
+        self.layers = [l for l in plan['layers'] if l['id'] in atlas['layers']]
+        self.layers.sort(key=lambda l: l['z'])
+        self.atlas = atlas['layers']
+        self.b = Builder(self.W, self.H)
+        self.parts: dict[str, int] = {}
+        self.rects: dict[int, tuple] = {}   # 워프 인덱스 → 휴지 자세 px 사각형
+
+    # ---- 좌표 변환 ----
+    def local(self, parent: int, pts):
+        if parent < 0:
+            return [self.b.model(x, y) for x, y in pts]
+        x0, y0, x1, y1 = self.rects[parent]
+        return [((x - x0) / (x1 - x0), (y - y0) / (y1 - y0)) for x, y in pts]
+
+    # ---- 파라미터 ----
+    def params(self):
+        P = self.b.param
+        for pid in ('ParamAngleX', 'ParamAngleY', 'ParamAngleZ'):
+            P(pid, -30, 30, 0, keys=[-30, 0, 30])
+        for pid in ('ParamEyeLOpen', 'ParamEyeROpen'):
+            P(pid, 0, 1, 1, keys=EYE_KEYS)
+        for pid in ('ParamEyeBallX', 'ParamEyeBallY', 'ParamBrowLY', 'ParamBrowRY', 'ParamMouthForm'):
+            P(pid, -1, 1, 0, keys=[-1, 0, 1])
+        P('ParamMouthOpenY', 0, 1, 0, keys=[0, 0.3, 1])
+        for pid in (*EYE_VARIANTS.values(), *MOUTH_VARIANTS.values()):
+            P(pid, 0, 1, 0, keys=[0, 1])
+        for pid in ('ParamBodyAngleX', 'ParamBodyAngleY', 'ParamBodyAngleZ'):
+            P(pid, -10, 10, 0, keys=[-10, 0, 10])
+        P('ParamBreath', 0, 1, 0)
+        for pid in ('ParamArmR', 'ParamArmL'):
+            P(pid, -1, 1, 0, keys=ARM_KEYS)
+        for pid in ('ParamEarR', 'ParamEarL', 'ParamTail', *HAIR_PARAMS, 'ParamSkirt', 'ParamRibbon', 'ParamSleeve'):
+            P(pid, -1, 1, 0, keys=[-1, 0, 1])
+
+    # ---- 디포머 ----
+    def body_px(self, v, x, y):
+        t = (BODY_PIVOT[1] - y) / self.H            # 아래 0 → 위 1
+        x += v['ParamBodyAngleX'] * 3.0 * t
+        y -= v['ParamBreath'] * 10 * t + v['ParamBodyAngleY'] * 1.5 * t
+        return rot(x, y, *BODY_PIVOT, v['ParamBodyAngleZ'] * 0.5 * t)   # 하단 절단선은 고정(안 그러면 비스듬히 떠서 흰 쐐기가 생김)
+
+    def head_px(self, v, x, y, depth=0.0):
+        ax, ay, az = v['ParamAngleX'], v['ParamAngleY'], v['ParamAngleZ']
+        t = max(0.0, (HEAD_PIVOT[1] - y) / 900)      # 목 0 → 정수리 ≈1
+        x += ax * (1.2 + 1.4 * t) + ax * depth * 2.5
+        y -= ay * (1.0 + 0.8 * t) + ay * depth * 1.6
+        return rot(x, y, *HEAD_PIVOT, az)
+
+    def deformers(self):
+        b, rects = self.b, self.rects
+        part = self.parts['03_Body']
+        pts = grid_pts(0, 0, self.W, self.H, 2, 2)
+        body = b.warp('WarpBody', part, -1, 2, 2, ['ParamBodyAngleX', 'ParamBodyAngleY', 'ParamBodyAngleZ', 'ParamBreath'],
+                      lambda v: dict(positions=self.local(-1, [self.body_px(v, x, y) for x, y in pts])))
+        rects[body] = (0, 0, self.W, self.H)
+        x0, y0, x1, y1 = HEAD_RECT
+        hp = grid_pts(x0, y0, x1 - x0, y1 - y0, 4, 5)
+        head = b.warp('WarpHead', self.parts['06_Face'], body, 5, 4, ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ'],
+                      lambda v: dict(positions=self.local(body, [self.head_px(v, x, y) for x, y in hp])))
+        rects[head] = HEAD_RECT
+        self.body, self.head = body, head
+
+    # ---- 아트메시 ----
+    def mesh_for(self, lid: str, w: int, h: int):
+        if lid.startswith('Sleeve_'):
+            return 5, 12
+        if lid in SWAY or lid in HAIR or lid == 'Tail':
+            return 3, 8
+        if lid.startswith('Ear'):
+            return 2, 3
+        return 2, 2
+
+    def transform(self, lid: str, v: dict, x: float, y: float, geo: dict):
+        """레이어 하나의 정점(px) 을 파라미터 값으로 변형. 머리/몸 워프의 영향은 부모가 처리하므로 여기서는 고유 변형만."""
+        x0, y0, w, h = geo['x0'], geo['y0'], geo['w'], geo['h']
+        if lid in HAIR:
+            p1, p2, a1, a2 = HAIR[lid]
+            u = (y - y0) / h
+            x += h * (a1 * v[p1] * u + 0.5 * a2 * v[p2] * u * u)
+        if lid in SWAY:
+            pid, amp, _ = SWAY[lid]
+            t = (y - y0) / h
+            x += amp * v[pid] * t * t
+        if lid in ARM_INNER:
+            inner, outer = ARM_INNER[lid], ARM_OUTER[lid]
+            u = min(1.0, max(0.0, (x - inner) / (outer - inner)))     # 안쪽 0 → 바깥 1
+            t = min(1.0, max(0.0, (y - ARM_TOP) / ARM_LEN))           # 어깨 0 → 밑단 1
+            x += (1 if outer > inner else -1) * lerp_key(v['ParamArm' + lid[-1]], ARM_KEYS, ARM_PX) * u ** 1.4 * t ** 1.2
+        if lid == 'Tail':
+            px, py = x0 + w - 40, y0 + h - 120
+            d = math.hypot(x - px, y - py) / math.hypot(w, h)
+            x, y = rot(x, y, px, py, v['ParamTail'] * 9 * d)
+        if lid.startswith('Ear_'):
+            side = lid[-1]
+            cx = x0 + w / 2
+            x, y = rot(x, y, cx, y0 + h, v['ParamEar' + side] * 14 * (1 if side == 'L' else -1))
+        if lid.startswith('Brow_'):
+            y -= v['ParamBrow' + lid[-1] + 'Y'] * 12
+        if lid.startswith('Eye_') and 'Closed' not in lid:
+            side = lid[4]
+            s = lerp_key(v['ParamEye' + side + 'Open'], EYE_KEYS, EYE_SQUASH)
+            cy = y0 + h * 0.8
+            y = cy + (y - cy) * s
+            if 'Iris' in lid:
+                x += v['ParamEyeBallX'] * 8
+                y += v['ParamEyeBallY'] * 5
+        if lid == 'Mouth_Open':
+            s = lerp_key(v['ParamMouthOpenY'], [0, 0.3, 1], [0.35, 0.5, 1.0])
+            y = y0 + (y - y0) * s
+        for key, depth in PARALLAX.items():
+            if lid.startswith(key) and 'ParamAngleX' in v:
+                x += v['ParamAngleX'] * depth * 2.5
+                y -= v['ParamAngleY'] * depth * 1.6
+                break
+        return x, y
+
+    def opacity(self, lid: str, v: dict) -> float:
+        if lid.startswith('Eye_'):
+            side = lid[4]
+            op = v['ParamEye' + side + 'Open']
+            open_w = lerp_key(op, EYE_KEYS, EYE_OPEN_W)
+            if lid.endswith('Closed'):
+                return 1 - open_w
+            tag = lid.split('_', 2)[2]
+            if tag in ('White', 'Iris', 'Lashes'):
+                return open_w * (1 - min(1.0, sum(v[pid] for pid in EYE_VARIANTS.values())))
+            return open_w * v[EYE_VARIANTS[tag]]
+        if lid.startswith('Mouth_'):
+            if lid in MOUTH_VARIANTS:
+                return v[MOUTH_VARIANTS[lid]]
+            rest = 1 - min(1.0, sum(v[pid] for pid in MOUTH_VARIANTS.values()))
+            open_w = lerp_key(v['ParamMouthOpenY'], [0, 0.3, 1], [0, 1, 1])
+            if lid == 'Mouth_Open':
+                return rest * open_w
+            form = v['ParamMouthForm']
+            shape = {'Mouth_Frown': lerp_key(form, [-1, 0, 1], [1, 0, 0]), 'Mouth_Line': lerp_key(form, [-1, 0, 1], [0, 1, 0]),
+                     'Mouth_Smile': lerp_key(form, [-1, 0, 1], [0, 0, 1])}[lid]
+            return rest * shape * (1 - open_w)
+        return 1.0
+
+    def bind_params(self, lid: str) -> list[str]:
+        ps: list[str] = []
+        if lid in HAIR:
+            ps += list(HAIR[lid][:2])
+        if lid in SWAY:
+            ps.append(SWAY[lid][0])
+        if lid in ARM_INNER:
+            ps.append('ParamArm' + lid[-1])
+        if lid == 'Tail':
+            ps.append('ParamTail')
+        if lid.startswith('Ear_'):
+            ps.append('ParamEar' + lid[-1])
+        if lid.startswith('Brow_'):
+            ps.append('ParamBrow' + lid[-1] + 'Y')
+        if lid.startswith('Eye_'):
+            tag = lid.split('_', 2)[2]
+            ps.append('ParamEye' + lid[4] + 'Open')
+            if tag in EYE_VARIANTS:
+                ps.append(EYE_VARIANTS[tag])
+            elif tag != 'Closed':
+                ps += list(EYE_VARIANTS.values())
+            if 'Iris' in lid:
+                ps += ['ParamEyeBallX', 'ParamEyeBallY']
+        if lid.startswith('Mouth_'):
+            if lid in MOUTH_VARIANTS:
+                ps.append(MOUTH_VARIANTS[lid])
+            else:
+                ps += list(MOUTH_VARIANTS.values()) + ['ParamMouthOpenY']
+                if lid != 'Mouth_Open':
+                    ps.append('ParamMouthForm')
+        if any(lid.startswith(k) for k in PARALLAX):
+            ps += ['ParamAngleX', 'ParamAngleY']
+        return ps
+
+    def artmeshes(self):
+        b = self.b
+        for layer in self.layers:
+            lid, z = layer['id'], layer['z']
+            a = self.atlas[lid]
+            rx, ry, w, h = a['rect']
+            x0, y0 = a['src']
+            cols, rows = self.mesh_for(lid, w, h)
+            uvs = [((rx + w * i / cols) / TEX, (ry + h * j / rows) / TEX) for j in range(rows + 1) for i in range(cols + 1)]
+            base = grid_pts(x0, y0, w, h, cols, rows)
+            geo = dict(x0=x0, y0=y0, w=w, h=h)
+            parent = self.head if self.is_head(layer) else self.body
+            if lid == 'Tail':
+                parent = self.body
+
+            def kf(v, lid=lid, base=base, geo=geo, parent=parent, z=z):
+                pts = [self.transform(lid, v, x, y, geo) for x, y in base]
+                return dict(positions=self.local(parent, pts), opacity=self.opacity(lid, v), drawOrder=500 + z)
+            b.artmesh(lid, self.parts[layer['group']], parent, a['texture'], uvs, grid_idx(cols, rows), self.bind_params(lid), kf)
+
+    @staticmethod
+    def is_head(layer) -> bool:
+        g = layer['group']
+        return g.startswith(('06_', '07_', '08_', '09_', '10_')) or layer['id'] == 'Neck'
+
+    def build(self):
+        for g in sorted({l['group'] for l in self.layers}):
+            self.parts[g] = self.b.part('Part' + g.replace('/', '_').replace('_', '', 1) if g[0].isdigit() else g)
+        self.params()
+        self.deformers()
+        self.artmeshes()
+        return self.b.build()
+
+    def model3(self, moc_name: str) -> dict:
+        return {
+            'Version': 3,
+            'FileReferences': {'Moc': moc_name, 'Textures': self.textures, 'Motions': {}, 'Expressions': []},
+            'Groups': [
+                {'Target': 'Parameter', 'Name': 'EyeBlink', 'Ids': ['ParamEyeLOpen', 'ParamEyeROpen']},
+                {'Target': 'Parameter', 'Name': 'LipSync', 'Ids': ['ParamMouthOpenY']},
+            ],
+            'HitAreas': [{'Id': 'Hair_Front', 'Name': 'Head'}, {'Id': 'Torso', 'Name': 'Body'}],
+        }
+
+
+def main(out_dir: str):
+    k = Kiriko()
+    m = k.build()
+    os.makedirs(out_dir, exist_ok=True)
+    moc = os.path.join(out_dir, 'kiriko.moc3')
+    m.save(moc)
+    from kiriko_anim import write_all
+    from kiriko_physics import write as write_physics
+    model3 = k.model3('kiriko.moc3')
+    model3['FileReferences']['Motions'], model3['FileReferences']['Expressions'] = write_all(out_dir)
+    model3['FileReferences']['Physics'] = write_physics(out_dir)
+    with open(os.path.join(out_dir, 'kiriko.model3.json'), 'w', encoding='utf-8') as f:
+        json.dump(model3, f, ensure_ascii=False, indent=2)
+    print(f'wrote {moc}: parts={len(k.b.parts)} params={len(k.b.params)} deformers={len(k.b.deformers)} artmeshes={len(k.b.artmeshes)}')
+
+
+if __name__ == '__main__':
+    main(sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(ATLAS))

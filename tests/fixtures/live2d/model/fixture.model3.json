@@ -1,0 +1,41 @@
+{
+  "Version": 3,
+  "FileReferences": {
+    "Moc": "fixture.moc3",
+    "Textures": [
+      "textures/texture_00.png"
+    ],
+    "Physics": "fixture.physics3.json",
+    "Motions": {
+      "Idle": [
+        {
+          "File": "motions/idle_01.motion3.json"
+        }
+      ]
+    }
+  },
+  "Groups": [
+    {
+      "Target": "Parameter",
+      "Name": "EyeBlink",
+      "Ids": [
+        "ParamEyeLOpen",
+        "ParamEyeROpen"
+      ]
+    },
+    {
+      "Target": "Parameter",
+      "Name": "LipSync",
+      "Ids": [
+        "ParamMouthOpenY"
+      ]
+    }
+  ],
+  "HitAreas": [
+    {
+      "Id": "HitAreaHead",
+      "Name": "Head"
+    }
+  ],
+  "_fixture": "테스트 전용 참조 무결성 픽스처. 실제 Cubism 모델이 아니며 런타임 로드 불가"
+}

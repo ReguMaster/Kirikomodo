@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "kirikomodo/live2d-layer-contract/v1",
+  "title": "Kirikomodo Live2D layer plan contract",
+  "description": "layer-plan.json 계약. 모든 레이어는 공통 캔버스 좌표계를 공유하며, 좌우 표기는 캐릭터 기준(sideConvention=character)이다. 명세 docs/implementation-spec.md 15.3·16.4·16.9 참조.",
+  "type": "object",
+  "required": ["version", "model", "canvas", "sideConvention", "naming", "groups", "layers"],
+  "properties": {
+    "version": { "const": 1 },
+    "model": {
+      "type": "object",
+      "required": ["id", "name", "scope"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "name": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+        "scope": { "enum": ["upper_body", "full_body"] }
+      }
+    },
+    "canvas": {
+      "type": "object",
+      "required": ["width", "height", "colorMode", "bitDepth", "colorProfile"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 64, "maximum": 8192 },
+        "height": { "type": "integer", "minimum": 64, "maximum": 8192 },
+        "colorMode": { "const": "RGB" },
+        "bitDepth": { "const": 8 },
+        "colorProfile": { "const": "sRGB" }
+      }
+    },
+    "sideConvention": { "const": "character" },
+    "naming": {
+      "type": "object",
+      "required": ["pattern", "sideSuffix", "excludeSuffixes", "guidePrefix"],
+      "properties": {
+        "pattern": { "type": "string" },
+        "sideSuffix": {
+          "type": "object",
+          "required": ["left", "right"],
+          "properties": { "left": { "const": "_L" }, "right": { "const": "_R" } }
+        },
+        "excludeSuffixes": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "guidePrefix": { "const": "Guide" }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "required": ["file", "upperBodyCrop"],
+      "properties": {
+        "file": { "type": "string" },
+        "upperBodyCrop": {
+          "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 4, "maxItems": 4,
+          "description": "[left, top, right, bottom] 원화 픽셀 좌표. 이 영역이 canvas에 비율 유지로 맞춰진다."
+        }
+      }
+    },
+    "groups": {
+      "type": "array", "minItems": 1,
+      "items": { "type": "string", "pattern": "^[0-9]{2}_[A-Za-z_]+(/[A-Za-z]+)?$" }
+    },
+    "layers": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "group", "z", "required"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+          "group": { "type": "string" },
+          "z": { "type": "integer", "description": "클수록 앞(위)에 그려진다. 고유해야 한다." },
+          "required": { "type": "boolean" },
+          "side": { "enum": ["L", "R", null] },
+          "restore": { "type": "boolean", "description": "기준 이미지에서 가려져 복원·재해석이 필요한 레이어" },
+          "exportExcluded": { "type": "boolean", "description": "_REF/_GUIDE/_TMP 등 최종 출력 제외" },
+          "note": { "type": "string" },
+          "cut": {
+            "type": "object",
+            "description": "cut_parts.py 분리 힌트(정리본 픽셀 좌표). sam: SAM 박스·점 프롬프트 목록, box/poly: 영역, dark: {box,max} 밝기 임계, expr: {name,region} 표정 변형 소스, draw: 직접 그리기, extend: {box,method(cv2|sdxl),prompt} 가려진 부분 복원 범위",
+            "properties": {
+              "sam": { "type": "array", "items": { "type": "object", "required": ["box"], "properties": {
+                "box": { "type": "array", "items": { "type": "integer" }, "minItems": 4, "maxItems": 4 },
+                "pos": { "type": "array" }, "neg": { "type": "array" } } } },
+              "box": { "type": "array", "items": { "type": "integer" }, "minItems": 4, "maxItems": 4 },
+              "poly": { "type": "array" },
+              "dark": { "type": "object", "required": ["box", "max"], "properties": { "red": { "type": "integer", "description": "R-max(G,B) > red 인 붉은 선도 포함" } } },
+              "expr": { "type": "object", "required": ["name", "region"],
+                "properties": { "box": { "type": "array", "description": "변형 차이를 찾을 창. 없으면 기본 파츠 bbox+30px" } } },
+              "draw": { "type": "object" },
+              "clip": { "type": "object", "description": "1차 마스크를 이 영역(box|poly) 안으로 제한" },
+              "dilate": { "type": "integer", "minimum": 1, "description": "1차 마스크를 px 만큼 팽창(장식물 외곽선 흡수)" },
+              "fallback": { "type": "object", "description": "1차 마스크에 안 잡힌 픽셀을 회수하는 2차 배정 영역(box|poly)" },
+              "extend": { "type": "object", "required": ["method"],
+                "properties": { "box": { "type": "array" }, "poly": { "type": "array" }, "method": { "enum": ["cv2", "sdxl"] },
+                  "prompt": { "type": "string" }, "grow": { "type": "integer", "description": "보이는 부분에서 연장할 px(기본 60)" },
+                  "seed": { "type": "string", "description": "보이는 부분이 없을 때 색을 빌릴 레이어 id" } } }
+            }
+          },
+          "draft": {
+            "type": "object",
+            "description": "draft_split.py 힌트(구 파이프라인). roi는 reference.upperBodyCrop 기준 픽셀 좌표",
+            "required": ["roi", "color"],
+            "properties": {
+              "roi": { "type": "array", "items": { "type": "integer" }, "minItems": 4, "maxItems": 4 },
+              "color": { "enum": ["skin", "white", "red", "gray", "hair", "dark", "any"] }
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-psdGroupRules": {
+    "root": "<model.name>",
+    "layerOrder": "z 오름차순 = PSD 아래에서 위",
+    "nameRules": ["영문·숫자·_만 사용", "좌우는 _L/_R 접미사(캐릭터 기준)", "작업용 가이드는 Guide 접두사", "출력 제외는 _REF/_GUIDE/_TMP 접미사"],
+    "cubismImport": ["RGB 8bit sRGB", "레이어명 고유", "클리핑·마스크·조정 레이어는 병합", "레이어 효과 없음"]
+  }
+}
