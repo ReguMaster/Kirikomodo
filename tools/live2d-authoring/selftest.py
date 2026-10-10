@@ -122,19 +122,38 @@ def test_pipeline(tmp: Path) -> None:
 
 def test_clean_eyes() -> None:
     import numpy as np
-    from clean_eyes import clean_variant
+    from clean_eyes import clean_variant, shift
     skin = (250, 228, 220)
     layer = np.zeros((300, 300, 4), np.uint8)
     layer[100:170, 100:200] = (*skin, 255)
     layer[100:131, 100:200, :3] = (205, 198, 198)        # 윗눈꺼풀 위 회색 잔상
     layer[135:143, 120:180, :3] = (30, 12, 11)           # 속눈썹 호
     layer[270:280, 270:280] = (220, 160, 150, 255)       # 눈에서 먼 조각
-    base_eye = np.zeros((300, 300), bool)
-    base_eye[120:160, 110:190] = True
-    out = clean_variant(layer, base_eye, skin)
-    assert out[115, 150, 3] == 255 and np.abs(out[115, 150, :3].astype(int) - skin).max() < 12, out[115, 150]
+    out = clean_variant(layer, skin)
     assert tuple(out[138, 150, :3]) == (30, 12, 11), "속눈썹 호는 그대로"
     assert out[275, 275, 3] == 0, "눈에서 먼 조각은 버려야 함"
+    ghost = out[100:131, 100:200]
+    assert not ((ghost[..., 3] > 20) & (np.abs(ghost[..., :3].astype(int) - (205, 198, 198)).max(2) < 12)).any(), "회색 잔상이 남으면 안 됨"
+    assert out[100, 150, 3] == 0, "눈 본체에서 먼 피부(깃털 조각)는 투명해야 함"
+    moved = shift(layer, 5, -3)
+    assert tuple(moved[135 - 3, 125]) == tuple(layer[135, 120]) and moved[0, 0, 3] == 0, "shift 는 (dx,dy) 만큼 평행이동"
+
+
+def test_eye_alignment() -> None:
+    """표정 눈(Wide·Teary·Glare)의 홍채가 기본 눈 홍채와 같은 자리에 있어야 표정이 바뀔 때 눈 높이·간격이 안 튄다. 레이어가 없으면(Git 무시 산출물) 건너뜀."""
+    import numpy as np
+    from PIL import Image
+    from clean_eyes import iris_center
+    layers = ROOT / "assets/live2d-authoring/layers"
+    if not (layers / "Eye_L_Iris.png").is_file():
+        print("skip eye_alignment (레이어 없음)")
+        return
+    load = lambda n: np.asarray(Image.open(layers / f"{n}.png").convert("RGBA"))
+    for side in "RL":
+        base = iris_center(load(f"Eye_{side}_Iris"))
+        for v in ("Wide", "Teary", "Glare"):
+            c = iris_center(load(f"Eye_{side}_{v}"))
+            assert c and abs(c[0] - base[0]) <= 3 and abs(c[1] - base[1]) <= 3, (side, v, c, base)
 
 
 def main() -> None:
@@ -142,7 +161,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="kmd-live2d-") as td:
         tmp = Path(td)
         for name, fn in (("contract", test_contract), ("help", test_help), ("layers", lambda: test_layers(tmp)),
-                         ("export_validation", lambda: test_export_validation(tmp)), ("clean_eyes", test_clean_eyes),
+                         ("export_validation", lambda: test_export_validation(tmp)), ("clean_eyes", test_clean_eyes), ("eye_alignment", test_eye_alignment),
                          ("pipeline", lambda: test_pipeline(tmp))):
             fn()
             print(f"ok  {name}")

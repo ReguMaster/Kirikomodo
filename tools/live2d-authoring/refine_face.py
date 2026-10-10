@@ -3,7 +3,7 @@
     .venv/Scripts/python tools/live2d-authoring/refine_face.py [--layers assets/live2d-authoring/layers]
 
 1. Face_Base: 눈이 놓일 수 있는 모든 영역(기본 눈 + 변형 12장의 합집합) 밑에 피부를 깐다. 한쪽 눈의 바깥 절반이 피부판 실루엣 밖에
-   있어서, 눈이 시차로 밀리면 그 자리로 배경이 비쳤다. 휴지 자세에서 위 레이어가 알파 255 로 덮는 픽셀만 채워 겉모습은 그대로다.
+   있어서, 눈이 시차로 밀리면 그 자리로 배경이 비쳤다. 휴지 자세에서 위 레이어가 알파 128 이상으로 덮는 픽셀만 채워 겉모습은 거의 그대로다.
 2. Neck: 원본 픽셀은 두고, 사각형으로 복원한 부분(세로 줄무늬·딱딱한 모서리)을 원본 목 색의 매끈한 필드로 바꾸고 가장자리를 둥글게 푼다.
 3. 복원 레이어(Apron·Torso·Hair_Back_R/L·Hair_Front): 복원한 부분(원본 픽셀이 아닌 것)을 그 레이어 본래 색(밝은 천·머리색)의 매끈한 필드로
    바꾸고 원본 영역에서 멀어질수록 투명하게 한다. SDXL/cv2 복원이 지어낸 붉은 덩어리·사각형 얼룩이 소매·머리가 움직일 때 드러났다.
@@ -27,6 +27,7 @@ EYE_TAGS = ('White', 'Iris', 'Lashes', 'Closed', 'Half', 'Wide', 'Teary', 'Glare
 VARIANT = ('Closed', 'Half', 'Wide', 'Teary', 'Glare', 'Sleepy', 'Mouth_Open', 'Mouth_O', 'Mouth_Smile', 'Mouth_Grin',
            'Mouth_Curious', 'Mouth_Annoyed', 'Mouth_Sleepy', 'Mouth_Frown')   # 휴지 자세에서 꺼져 있는 표정 변형
 SKIN_SIGMAS = (18, 60)   # 피부색 필드 σ(가까운 출처가 없으면 더 넓게)
+COVER_MIN = 128          # 휴지 자세에서 위 레이어가 이 알파 이상으로 덮는 곳만 바꾼다(속눈썹 꼬리 반투명 가장자리 밑 잔해 포함)
 NECK_FEATHER = 28        # 복원한 목의 바깥 경계 알파 페더 px
 NECK_ORIGINAL_TOL = 6    # 원본 픽셀로 판정할 색 차이(RGB 합)
 # 복원 레이어 정리: id → (색 출처 밝기 하한 V, 채도 상한 S, 완전 불투명 거리 px, 페이드 거리 px, 색 필드 σ)
@@ -62,7 +63,7 @@ def _field(rgb: np.ndarray, source: np.ndarray, fallback: np.ndarray, sigmas: tu
 
 
 def covered_at_rest(layers: Path, above_z: int) -> np.ndarray:
-    """휴지 자세에서 Face_Base 위 레이어(변형 제외)가 알파 255 로 완전히 덮는 픽셀."""
+    """휴지 자세에서 Face_Base 위 레이어(변형 제외)가 알파 COVER_MIN 이상으로 덮는 픽셀."""
     cover = None
     for layer in load_plan(DEFAULT_PLAN)['layers']:
         lid = layer['id']
@@ -71,7 +72,7 @@ def covered_at_rest(layers: Path, above_z: int) -> np.ndarray:
             continue
         a = _rgba(path)[..., 3]
         cover = a if cover is None else np.maximum(cover, a)
-    return cover == 255
+    return cover >= COVER_MIN
 
 
 def extend_face_base(layers: Path, base: np.ndarray) -> int:
@@ -91,8 +92,10 @@ def extend_face_base(layers: Path, base: np.ndarray) -> int:
         return 0
     hsv = cv2.cvtColor(np.ascontiguousarray(face[..., :3]), cv2.COLOR_RGB2HSV).astype(np.float32)
     s, v = hsv[..., 1] / 255, hsv[..., 2] / 255
-    skin = (face[..., 3] == 255) & (s >= 0.06) & (s <= 0.25) & (v >= 0.9) & ~need
-    color = _field(face[..., :3], skin, np.array([253, 227, 220]))
+    # 색 출처: need 밖의 불투명한 밝은 픽셀 전부(어두운 윤곽선·속눈썹만 제외). 단색 피부색으로 채우면 앞머리 그림자 그라데이션과 달라서
+    # 눈이 작아지는 표정에서 사각 패치로 보인다 → 주변 색을 그대로 이어받는다.
+    source = (face[..., 3] == 255) & (v >= 0.72) & (s <= 0.55) & ~need
+    color = _field(face[..., :3], source, np.array([253, 227, 220]), (10, 28, 70))
     face[need, :3] = color[need].round().astype(np.uint8)
     face[need, 3] = 255
     Image.fromarray(face).save(layers / 'Face_Base.png')
