@@ -1,5 +1,6 @@
 // Live2D 실렌더링 검증. `npm run test:e2e:live2d` (모델 지정: KMD_L2D_MODEL=<.model3.json>, 기본은 Haru 샘플)
 // 내장 Core(external/live2dcubismcore)로 모델을 실제 가져오기 경로(importModel)로 불러와 캔버스가 그려지는지 본다.
+// KMD_SHOT_DIR=<폴더> 로 표정·모션 캡처를 저장, KMD_HIRES=1 이면 창 배율 2 × DPR 2 로 1280x1600 캡처(육안 검수용).
 const { app, BrowserWindow, dialog } = require('electron')
 const fs = require('node:fs')
 const os = require('node:os')
@@ -16,6 +17,7 @@ const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'kmd-l2d-'))
 app.setPath('userData', userData)
 app.setAppPath(ROOT)
 if (!process.env.KMD_GPU) app.disableHardwareAcceleration()
+if (process.env.KMD_HIRES) app.commandLine.appendSwitch('force-device-scale-factor', '2')
 dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [model3] })
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -46,7 +48,7 @@ async function run() {
   check('model imported', !!info?.id, JSON.stringify(info).slice(0, 200))
   if (!info?.id) return
 
-  await js(`window.kirikomodo.updateSettings({ character: { activeModelId: ${JSON.stringify(info.id)} } })`)
+  await js(`window.kirikomodo.updateSettings({ character: { activeModelId: ${JSON.stringify(info.id)} }${process.env.KMD_HIRES ? ', window: { scale: 2 }' : ''} })`)
   const canvas = await until(() => js(`!!document.querySelector('#character-stage canvas.live2d-canvas')`))
   check('live2d canvas mounted', !!canvas)
   await sleep(1500)
@@ -68,6 +70,7 @@ async function run() {
   const shotDir = process.env.KMD_SHOT_DIR
   if (shotDir) fs.mkdirSync(shotDir, { recursive: true })
   const snap = async (name) => {
+    await until(async () => !(await js('window.__kmdLive2D.blinking()')), 1000) // 자동 깜빡임 도중 프레임은 찍지 않는다
     const img = await win.webContents.capturePage()
     if (shotDir) fs.writeFileSync(path.join(shotDir, `${name}.png`), img.toPNG())
     return img.toBitmap()
@@ -78,6 +81,8 @@ async function run() {
     return n
   }
   const preview = (detail) => js(`document.dispatchEvent(new CustomEvent('kirikomodo:preview', { detail: ${JSON.stringify(detail)} }))`)
+  await preview({ emotion: 'neutral' }) // 앱이 띄운 인사 말풍선의 감정이 남아 있으면 기준 컷이 오염된다
+  await sleep(900)
   const base = await snap('neutral')
   for (const emotion of ['happy', 'playful', 'curious', 'concerned', 'annoyed', 'sleepy']) {
     await preview({ emotion })

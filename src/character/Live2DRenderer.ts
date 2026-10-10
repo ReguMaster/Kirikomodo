@@ -92,7 +92,7 @@ async function fetchModelFile(modelId: string, rel: string, as: 'json' | 'buffer
   return as === 'json' ? res.json() : res.arrayBuffer()
 }
 
-type DebugWindow = Window & { __kmdLive2D?: { param: (id: string) => number | undefined; physics: boolean } }
+type DebugWindow = Window & { __kmdLive2D?: { param: (id: string) => number | undefined; physics: boolean; blinking: () => boolean } }
 
 // Cubism Core 를 직접 다루는 최소 WebGL 렌더러. 포즈·모션 사운드는 지원하지 않는다.
 export class Live2DRenderer implements CharacterRenderer {
@@ -174,7 +174,7 @@ export class Live2DRenderer implements CharacterRenderer {
       this.lastFrame = performance.now()
       this.raf = requestAnimationFrame(this.frame)
       // e2e(tests/e2e/live2d.cjs)가 파라미터 값을 읽는 훅
-      ;(window as DebugWindow).__kmdLive2D = { param: this.paramAccess.get, physics: this.physics !== null }
+      ;(window as DebugWindow).__kmdLive2D = { param: this.paramAccess.get, physics: this.physics !== null, blinking: () => this.blinkStart >= 0 }
     } catch (err) {
       await this.dispose()
       throw err
