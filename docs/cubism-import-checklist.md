@@ -27,4 +27,4 @@ python tools/live2d-authoring/validate_export.py --model <export>/kiriko-upper-b
 ```
 
 - [ ] `model-export-validation.json` 이 `PASSED`(또는 사유 확인된 `NEEDS_MANUAL_QA`)
-- [ ] `assets/models/private/<id>/` 에 복사 후 앱에서 로드 확인(작업 10)
+- [ ] 앱 설정 > 캐릭터 > 모델 > "가져오기" 로 `.model3.json` 선택 → 앱이 `%APPDATA%/kirikomodo/models/<id>/` 에 복사. Core(`live2dcubismcore.min.js`)는 "Core 폴더" 버튼으로 연 폴더에 배치 후 "다시 불러오기"

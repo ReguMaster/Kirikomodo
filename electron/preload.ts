@@ -44,6 +44,16 @@ const api: KirikomodoApi = {
   },
   exportChat: () => ipcRenderer.invoke(IPC.chatExport),
   resetSettings: () => ipcRenderer.invoke(IPC.settingsReset),
+  listModels: () => ipcRenderer.invoke(IPC.modelList),
+  importModel: () => ipcRenderer.invoke(IPC.modelImport),
+  removeModel: (id) => ipcRenderer.invoke(IPC.modelRemove, id),
+  reloadModel: () => ipcRenderer.send(IPC.modelReload),
+  onModelReload: (listener) => {
+    const handler = (): void => listener()
+    ipcRenderer.on(IPC.modelReload, handler)
+    return () => ipcRenderer.removeListener(IPC.modelReload, handler)
+  },
+  openModelsFolder: () => ipcRenderer.send(IPC.modelOpenFolder),
   openLogsFolder: () => ipcRenderer.send(IPC.appOpenLogs),
   quitApp: () => ipcRenderer.send(IPC.appQuit)
 }

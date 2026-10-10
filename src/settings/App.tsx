@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import type { AppInfo } from '@shared/ipc'
+import type { ModelLibrary } from '@shared/live2d'
 import type { SettingsPatch } from '@shared/settings'
 import { applyTextScale, useSettingsStore } from '@/app/settingsStore'
 import './settings.css'
@@ -31,11 +32,30 @@ export function App(): JSX.Element {
   const update = useSettingsStore((s) => s.update)
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [library, setLibrary] = useState<ModelLibrary | null>(null)
 
   useEffect(() => applyTextScale(settings), [settings])
   useEffect(() => {
     void window.kirikomodo.getAppInfo().then(setInfo)
+    void window.kirikomodo.listModels().then(setLibrary)
   }, [])
+
+  const failNotice = (err: unknown): void => setNotice((err instanceof Error ? err.message : String(err)).replace(/^.*?Error: /, ''))
+  const importModel = (): void => {
+    void window.kirikomodo
+      .importModel()
+      .then(async (model) => {
+        if (!model) return
+        setLibrary(await window.kirikomodo.listModels())
+        patch({ character: { activeModelId: model.id } })
+        setNotice(`가져왔어요: ${model.name} (모션 ${model.motions.length}종, 표정 ${model.expressions.length}종)`)
+      })
+      .catch(failNotice)
+  }
+  const removeModel = (id: string): void => {
+    if (!confirm('앱에 복사된 모델만 지워요. 원본 파일은 그대로예요. 지울까요?')) return
+    void window.kirikomodo.removeModel(id).then(setLibrary).catch(failNotice)
+  }
 
   const patch = (p: SettingsPatch): void => {
     void update(p).catch(() => setNotice('설정을 저장하지 못했어요. 로그를 확인해 주세요.'))
@@ -59,8 +79,41 @@ export function App(): JSX.Element {
 
         <section className="settings-section">
           <h2>캐릭터</h2>
-          <Row label="모델" hint="Live2D 모델 가져오기는 준비 중이에요">
-            <span className="settings-static">{character.activeModelId === 'placeholder' ? '기본 플레이스홀더' : character.activeModelId}</span>
+          <Row
+            label="모델"
+            hint={
+              library === null
+                ? undefined
+                : library.coreAvailable
+                  ? 'Cubism Core 준비됨. .model3.json 을 가져오면 바로 바꿀 수 있어요'
+                  : `Cubism Core 없음: ${library.coreDir} 에 live2dcubismcore.min.js 를 넣어 주세요(없으면 기본 캐릭터로 표시)`
+            }
+          >
+            <span className="settings-inline">
+              <select value={character.activeModelId} onChange={(e) => patch({ character: { activeModelId: e.target.value } })}>
+                <option value="placeholder">기본 플레이스홀더</option>
+                {library?.models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+                {character.activeModelId !== 'placeholder' && !library?.models.some((m) => m.id === character.activeModelId) && (
+                  <option value={character.activeModelId}>{character.activeModelId} (없음)</option>
+                )}
+              </select>
+              <button type="button" onClick={importModel}>
+                가져오기
+              </button>
+              <button type="button" disabled={character.activeModelId === 'placeholder'} onClick={() => removeModel(character.activeModelId)}>
+                삭제
+              </button>
+              <button type="button" onClick={() => window.kirikomodo.reloadModel()}>
+                다시 불러오기
+              </button>
+              <button type="button" onClick={() => window.kirikomodo.openModelsFolder()}>
+                Core 폴더
+              </button>
+            </span>
           </Row>
           <Row label={`크기 ${Math.round(win.scale * 100)}%`}>
             <input

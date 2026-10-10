@@ -3,17 +3,18 @@ import { registerIpc } from './ipc'
 import { closeDialogueStore, initDialogueStore } from './services/dialogue'
 import { syncAutoStart } from './services/autostart'
 import { log } from './services/logger'
+import { registerModelProtocol, registerModelScheme } from './services/models'
 import { flushSettings, getSettings, loadSettings, onSettingsChanged } from './services/settings'
 import { createTray, destroyTray } from './tray'
 import { createCharacterWindow, getCharacterWindow, watchCharacterEnvironment } from './windows/character'
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' kmd-model:",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: kmd-model:",
   "font-src 'self' data:",
-  "connect-src 'self'"
+  "connect-src 'self' kmd-model:"
 ].join('; ')
 
 // 개발 서버(HMR)에서는 CSP를 걸지 않고, 패키징/프리뷰 실행에서만 강제한다.
@@ -44,6 +45,7 @@ async function bootstrap(): Promise<void> {
   log.info('app', `Kirikomodo ${app.getVersion()} starting`)
   const settings = await loadSettings()
   applyProductionCsp()
+  registerModelProtocol()
   initDialogueStore()
   registerIpc()
   app.on('web-contents-created', (_event, contents) => recoverRendererCrash(contents))
@@ -59,6 +61,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.setAppUserModelId('io.github.regumaster.kirikomodo')
+  registerModelScheme()
   app.on('second-instance', showCharacter)
   app.whenReady().then(bootstrap).catch((err) => {
     log.error('app', 'bootstrap failed', err)

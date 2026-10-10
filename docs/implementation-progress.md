@@ -18,8 +18,8 @@
 | 6 | 행동 시스템 (시간대·조용한 시간·방해 금지·선제 발화 제한) | a92eeb0 | 검증 통과 (vitest) |
 | 7 | 규칙 기반 대화·말풍선·채팅 UI | 744f331 | 검증 통과 (vitest + 오프스크린) |
 | 8 | 설정 화면·SQLite 기록·JSON 내보내기·예외 복구 | 3fbcadb | 검증 통과 (vitest + 스모크 + 오프스크린) |
-| 9 | Live2D 파츠 분리·모델 제작 파이프라인 | (본 커밋) | 도구·문서 완료, 모델은 NEEDS_MANUAL_QA/REQUIRES_EDITOR (`docs/model-production-status.md`) |
-| 10 | Live2D Cubism 모델 로더 | – | 미구현 (Cubism Core는 외부 배포) |
+| 9 | Live2D 파츠 분리·모델 제작 파이프라인 | df87efe | 도구·문서 완료, 모델은 NEEDS_MANUAL_QA/REQUIRES_EDITOR (`docs/model-production-status.md`) |
+| 10 | Live2D Cubism 모델 로더 | (본 커밋) | 구현·검증 통과 (vitest + 빌드), 실모델 미검증 (Core·moc3 없음) |
 | 11 | 통합 테스트·타입 검사·빌드·오류 수정 | – | 미착수 |
 | 12 | Kirikomodo.exe 빌드 + 보고서 | – | 미착수 |
 
@@ -57,7 +57,7 @@
 - JSON 내보내기(`dialog.showSaveDialog`), 전체 삭제 시 모든 창 `chat:cleared` 동기화.
 - 예외: 렌더러 `ErrorBoundary`(재로드 버튼), `render-process-gone` 시 로그 후 reload, `unresponsive` 경고, main `uncaughtException`/`unhandledRejection` 로그.
 - 검증: vitest 38개(DB 마이그레이션·재오픈·limit 정렬 포함), typecheck, build, 실앱 스모크(`kirikomodo.sqlite` 생성 로그), 오프스크린 설정 화면 조작(토글→`settings:update`, 내보내기→`chat:export`, FPS select).
-- 미구현: `user_profile` 테이블(사용처 없음), 하드웨어 가속 진단, 소리 끄기(음성 기능 없음), 언어 선택(한국어 고정), Live2D 모델 가져오기 UI(작업 10).
+- 미구현: `user_profile` 테이블(사용처 없음), 하드웨어 가속 진단, 소리 끄기(음성 기능 없음), 언어 선택(한국어 고정).
 
 ### 9. Live2D 파츠 분리·제작 파이프라인 — 도구 완료, 모델 미완성
 - `tools/live2d-authoring/` Python CLI 9종(계획 생성·원화 분석·색/ROI 초안 분리·파츠 검증·미리보기·pure-Python PSD 조립·model3.json 검증·파이프라인·픽스처). 사용법 `docs/live2d-authoring.md`.
@@ -65,8 +65,12 @@
 - 검증: `npm run test:authoring`(픽스처 기반 자체검증 5종 통과), `run_pipeline.py --build-id 2026-10-10-r6` 전체 상태 `NEEDS_MANUAL_QA`.
 - 미완: 완성 파츠 PNG 0/51, Cubism Editor 리깅·moc3 내보내기(`REQUIRES_EDITOR`, Editor 미설치), 배포 가능한 원화 없음(`docs/asset-rights.md`). 산출물 폴더 `assets/live2d-authoring/output/` 은 Git 무시.
 
-### 10. Live2D 로더 — 미구현 / 외부 도구 필요
-- Cubism Core(`live2dcubismcore.min.js`)는 npm 미배포 → 사용자가 공식 SDK에서 가져와야 함. 미존재 시 플레이스홀더 폴백.
+### 10. Live2D Cubism 모델 로더 — 구현 완료, 실모델 미검증
+- Cubism Core(`live2dcubismcore.min.js`)는 npm 미배포·재배포 불가 → 사용자가 공식 SDK에서 받아 `%APPDATA%/kirikomodo/live2d/` 에 직접 배치(설정 > 캐릭터 > 모델 > "Core 폴더" 버튼). 없으면 플레이스홀더 폴백 + 말풍선 안내.
+- 가져오기(FR-003): 설정 > 모델 > "가져오기" → `.model3.json` 선택 → `inspectModel3` 참조 검사(`../`·절대 경로·원격·허용 외 확장자 거부, 파일 64MB/전체 256MB, `MOC3` 매직) → `%APPDATA%/kirikomodo/models/<id>/` 복사 + `models.json` 등록. 삭제는 앱 복사본만 제거(원본 유지), 사용 중이면 플레이스홀더로 복귀.
+- 렌더러: 전용 스킴 `kmd-model://`(`electron/services/models.ts`, `protocol.handle`, 경로 탈출 차단)로 Core/모델 파일 제공. `src/character/Live2DRenderer.ts` 가 Core 원시 API + 자체 WebGL(프리멀티플라이 텍스처, 블렌드 모드, 스텐실 마스크, renderOrders)로 그림. motion3/exp3 파싱(`live2dMotion.ts`), Idle 자동 루프, 깜빡임·호흡·시선, 표정 파일 없으면 내장 파라미터 표로 감정 표현, HitAreas 기반 hitTest. 모션 그룹 별칭 또는 모델 폴더의 `model-map.json`(선택)으로 앱 모션 이름 ↔ 그룹 매핑.
+- 검증: `tests/unit/live2d.test.ts`(model3 검사·거부 케이스·커브 보간·페이드) 포함 vitest 43개 통과, typecheck·build 통과.
+- 한계: 실제 Core·moc3 가 없어 런타임 렌더링은 **NOT_TESTED**. physics3/pose3/사운드/립싱크 미지원(파일은 복사만), 마스크는 하드 스텐실(반전 마스크 미지원).
 
 ### 11~12. 통합 검증·패키징 — 미착수
 - 설치 패키지(electron-builder NSIS) 생성·설치·제거 검증은 작업 12에서 기록.

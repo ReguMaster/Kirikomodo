@@ -1,5 +1,6 @@
 import type { Settings, SettingsPatch } from './settings'
 import type { ChatMessage } from './types'
+import type { ModelInfo, ModelLibrary } from './live2d'
 
 export const IPC = {
   settingsGet: 'settings:get',
@@ -23,7 +24,12 @@ export const IPC = {
   settingsReset: 'settings:reset',
   appOpenLogs: 'app:open-logs',
   appQuit: 'app:quit',
-  appInfo: 'app:info'
+  appInfo: 'app:info',
+  modelList: 'model:list',
+  modelImport: 'model:import',
+  modelRemove: 'model:remove',
+  modelReload: 'model:reload',
+  modelOpenFolder: 'model:open-folder'
 } as const
 
 export type WindowName = 'character' | 'chat' | 'settings'
@@ -70,6 +76,15 @@ export interface KirikomodoApi {
   /** 저장 대화상자를 띄워 전체 기록을 JSON으로 내보낸다. 취소하면 null. */
   exportChat(): Promise<string | null>
   resetSettings(): Promise<Settings>
+  /** 등록된 Live2D 모델과 Cubism Core 배치 여부. */
+  listModels(): Promise<ModelLibrary>
+  /** 파일 대화상자로 .model3.json 을 골라 userData/models 에 복사한다. 취소하면 null, 검증 실패는 reject. */
+  importModel(): Promise<ModelInfo | null>
+  removeModel(id: string): Promise<ModelLibrary>
+  /** 캐릭터 창에 모델 다시 불러오기를 요청한다(폴백 후 재시도). */
+  reloadModel(): void
+  onModelReload(listener: () => void): () => void
+  openModelsFolder(): void
   openLogsFolder(): void
   quitApp(): void
 }

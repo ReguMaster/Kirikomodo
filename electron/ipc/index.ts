@@ -6,6 +6,7 @@ import { CHAT_MAX_INPUT_LENGTH } from '@shared/types'
 import { getSettings, onSettingsChanged, resetSettings, updateSettings } from '../services/settings'
 import { clearChat, exportChat, getChatHistory, sendChat, speakProactive } from '../services/dialogue'
 import { logsDir } from '../services/logger'
+import { importModel, listModels, openModelsFolder, removeModel } from '../services/models'
 import { log } from '../services/logger'
 import { beginCharacterDrag, dragCharacter, getCharacterWindow, setCharacterIgnoreMouse } from '../windows/character'
 import { buildAppMenu } from '../tray'
@@ -94,6 +95,11 @@ export function registerIpc(): void {
   on(IPC.chatProactive, null, (event) => {
     if (isFromCharacter(event)) speakProactive()
   })
+  handle(IPC.modelList, null, () => listModels())
+  handle(IPC.modelImport, null, (event) => importModel(BrowserWindow.fromWebContents(event.sender)))
+  handle(IPC.modelRemove, z.string().min(1).max(128), (_event, id) => removeModel(id))
+  on(IPC.modelReload, null, () => getCharacterWindow()?.webContents.send(IPC.modelReload))
+  on(IPC.modelOpenFolder, null, () => openModelsFolder())
   on(IPC.appOpenLogs, null, () => void shell.openPath(logsDir()))
   on(IPC.appQuit, null, () => app.quit())
 
