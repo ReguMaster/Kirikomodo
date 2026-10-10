@@ -4,14 +4,14 @@
 상태 구분: `구현 완료(검증 전)` / `검증 통과` / `검증 실패` / `미검증` / `외부 도구 필요`.
 "검증 통과"는 `npm run typecheck`·`npm test`·`npm run build`·`npx electron .` 부팅 스모크·오프스크린 캡처 스크립트 중 해당 항목을 통과한 것이며, 실기 사용자 조작 검증은 별도로 표시한다.
 
-최종 갱신: 2026-10-10 (작업 8 완료 시점). 전체 통합 검증·설치 패키지 검증은 Phase 5(작업 11·12)에서 재기록한다.
+최종 갱신: 2026-10-10 (작업 11 완료 시점). 설치 패키지 검증은 작업 12에서 기록한다.
 
 ## 요약
 
 | # | 기능 | 커밋 | 상태 |
 |---|------|------|------|
 | 1 | 기본 구조 (Electron 44 + React 19 + TS + electron-vite 5) | dfa21a2 | 검증 통과 (typecheck/vitest/build) |
-| 2 | 데스크톱 상주 (투명창·항상 위·트레이·자동 실행·다중 모니터 보정) | 659bdca | 부분 검증 (아래 참조) |
+| 2 | 데스크톱 상주 (투명창·항상 위·트레이·자동 실행·다중 모니터 보정) | 659bdca | 검증 통과 (E2E), 실기 항목 미검증 (아래 참조) |
 | 3 | 2D 플레이스홀더 캐릭터 + 렌더러 분리 | a5937b1 | 검증 통과 (오프스크린 캡처) |
 | 4 | 상호작용 (드래그·Ctrl+휠 크기·클릭 반응·시선·우클릭 메뉴) | 1f3eab6 | 검증 통과 (오프스크린 입력 주입) |
 | 5 | 애니메이션 + 모션 우선순위 | 1aa6876 | 검증 통과 (vitest) |
@@ -19,8 +19,8 @@
 | 7 | 규칙 기반 대화·말풍선·채팅 UI | 744f331 | 검증 통과 (vitest + 오프스크린) |
 | 8 | 설정 화면·SQLite 기록·JSON 내보내기·예외 복구 | 3fbcadb | 검증 통과 (vitest + 스모크 + 오프스크린) |
 | 9 | Live2D 파츠 분리·모델 제작 파이프라인 | df87efe | 도구·문서 완료, 모델은 NEEDS_MANUAL_QA/REQUIRES_EDITOR (`docs/model-production-status.md`) |
-| 10 | Live2D Cubism 모델 로더 | (본 커밋) | 구현·검증 통과 (vitest + 빌드), 실모델 미검증 (Core·moc3 없음) |
-| 11 | 통합 테스트·타입 검사·빌드·오류 수정 | – | 미착수 |
+| 10 | Live2D Cubism 모델 로더 | f670b07 | 구현·검증 통과 (vitest + 빌드), 실모델 미검증 (Core·moc3 없음) |
+| 11 | 통합 테스트·타입 검사·빌드·오류 수정 | f301356·142dfe5·67f879c | 검증 통과 (typecheck/vitest 43/build/authoring/E2E 29) |
 | 12 | Kirikomodo.exe 빌드 + 보고서 | – | 미착수 |
 
 ## 기능별 상세
@@ -30,9 +30,9 @@
 - settings.json 원자적 저장(tmp→bak→rename), CSP는 패키징/프리뷰에서만 적용.
 - 검증: typecheck, vitest, build 산출물(`out/main`, `out/preload`, `out/renderer/*`) 확인.
 
-### 2. 데스크톱 상주 — 부분 검증
-- 검증 통과: 부팅 스모크(트레이 생성 로그), 작업 영역 clamp 순수 함수 vitest.
-- 미검증: 실기 클릭 통과(`setIgnoreMouseEvents`) 체감, 트레이 메뉴 클릭, 다중 모니터/DPI 변경, 절전 복귀 보정, 시작 프로그램 등록(패키징 빌드에서만 동작).
+### 2. 데스크톱 상주 — 검증 통과 (E2E)
+- 검증 통과: E2E(`npm run test:e2e`)로 투명 영역 `setIgnoreMouseEvents(true)`/캐릭터 위 `false` 전환, 드래그 후 settings.json 위치 저장, 트레이 메뉴 5항목 클릭(숨기기/표시/대화/설정/방해 금지), 화면 밖 이동 후 `display-metrics-changed` → 작업 영역 복귀, 종료 직전 이동 위치 flush.
+- 미검증(환경 없음): 실제 두 번째 모니터 분리·DPI 변경·절전 복귀(코드 경로는 동일 핸들러 `ensureCharacterVisibleOnScreen`), 시작 프로그램 등록(패키징 빌드 전용, 작업 12에서 확인).
 
 ### 3. 플레이스홀더 캐릭터 — 검증 통과
 - SVG DOM 직접 생성 렌더러, 감정 7종·모션 10종. `createCharacterRenderer` 팩토리가 Live2D 분기 지점.
@@ -72,8 +72,14 @@
 - 검증: `tests/unit/live2d.test.ts`(model3 검사·거부 케이스·커브 보간·페이드) 포함 vitest 43개 통과, typecheck·build 통과.
 - 한계: 실제 Core·moc3 가 없어 런타임 렌더링은 **NOT_TESTED**. physics3/pose3/사운드/립싱크 미지원(파일은 복사만), 마스크는 하드 스텐실(반전 마스크 미지원).
 
-### 11~12. 통합 검증·패키징 — 미착수
-- 설치 패키지(electron-builder NSIS) 생성·설치·제거 검증은 작업 12에서 기록.
+### 11. 통합 검증 — 검증 통과
+- 실행: `npm run typecheck` ✓, `npm test` 43/43 ✓, `npm run build` ✓, `npm run test:authoring` ✓, `npm run test:e2e` 29/29 ✓.
+- E2E 하네스 `tests/e2e/smoke.cjs`: 임시 폴더를 userData로 지정해 실제 `out/main/main.js`를 띄운다(사용자 데이터 미접촉). 손상 settings.json→.bak 복구(AC-03), 없는 모델 폴백 말풍선(AC-11), 클릭 통과(AC-02), 드래그·위치 저장(AC-03), 트레이 메뉴(AC-04), 표정 미리보기(AC-05), 방해 금지·일일 3회 제한(AC-07), 규칙 대화·unknown 폴백(AC-08), SQLite 기록·전체 삭제(AC-09), 화면 밖 복귀(AC-13), 렌더러 강제 크래시 후 reload, 종료 시 위치 flush.
+- 발견·수정한 결함: (1) 메인 `speakProactive`가 방해 금지·조용한 시간을 검사하지 않아 렌더러 엔진을 우회하면 발화 가능 → 메인에서도 차단(f301356). (2) 종료 시 500ms 디바운스 중인 위치 저장이 유실(`flushSettings` 미대기) → `before-quit`에서 위치 flush 후 저장 완료를 기다려 종료(142dfe5). 두 결함 모두 수정 전 E2E 실패 → 수정 후 통과로 확인.
+- 미검증(NOT_TESTED): 실기 마우스 체감(hover/드래그는 `sendInputEvent` 주입), 실제 모니터 분리·DPI·절전, 장시간(수 시간) 상주 안정성, Live2D 실모델 렌더링(Core·moc3 없음).
+
+### 12. 패키징 — 미착수
+- 설치 패키지(electron-builder NSIS/portable) 생성·실행 검증은 작업 12에서 기록.
 
 ## 공통 제약
 - 외부 네트워크·LLM·텔레메트리 없음. 모든 데이터는 `%APPDATA%/Kirikomodo/`에 저장.
