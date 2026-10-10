@@ -60,3 +60,6 @@ assets/live2d-authoring/samples/
 
 # 비공개 원화에서 잘라낸 파츠 PNG(cut_parts.py 산출물). .gitkeep 만 추적
 assets/live2d-authoring/layers/*.png
+
+# 제3자 저작물 레퍼런스(비배포)
+assets/reference/kiriko.png
