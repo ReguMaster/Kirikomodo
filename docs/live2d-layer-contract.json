@@ -71,9 +71,31 @@
           "restore": { "type": "boolean", "description": "기준 이미지에서 가려져 복원·재해석이 필요한 레이어" },
           "exportExcluded": { "type": "boolean", "description": "_REF/_GUIDE/_TMP 등 최종 출력 제외" },
           "note": { "type": "string" },
+          "cut": {
+            "type": "object",
+            "description": "cut_parts.py 분리 힌트(정리본 픽셀 좌표). sam: SAM 박스·점 프롬프트 목록, box/poly: 영역, dark: {box,max} 밝기 임계, expr: {name,region} 표정 변형 소스, draw: 직접 그리기, extend: {box,method(cv2|sdxl),prompt} 가려진 부분 복원 범위",
+            "properties": {
+              "sam": { "type": "array", "items": { "type": "object", "required": ["box"], "properties": {
+                "box": { "type": "array", "items": { "type": "integer" }, "minItems": 4, "maxItems": 4 },
+                "pos": { "type": "array" }, "neg": { "type": "array" } } } },
+              "box": { "type": "array", "items": { "type": "integer" }, "minItems": 4, "maxItems": 4 },
+              "poly": { "type": "array" },
+              "dark": { "type": "object", "required": ["box", "max"], "properties": { "red": { "type": "integer", "description": "R-max(G,B) > red 인 붉은 선도 포함" } } },
+              "expr": { "type": "object", "required": ["name", "region"],
+                "properties": { "box": { "type": "array", "description": "변형 차이를 찾을 창. 없으면 기본 파츠 bbox+30px" } } },
+              "draw": { "type": "object" },
+              "clip": { "type": "object", "description": "1차 마스크를 이 영역(box|poly) 안으로 제한" },
+              "dilate": { "type": "integer", "minimum": 1, "description": "1차 마스크를 px 만큼 팽창(장식물 외곽선 흡수)" },
+              "fallback": { "type": "object", "description": "1차 마스크에 안 잡힌 픽셀을 회수하는 2차 배정 영역(box|poly)" },
+              "extend": { "type": "object", "required": ["method"],
+                "properties": { "box": { "type": "array" }, "poly": { "type": "array" }, "method": { "enum": ["cv2", "sdxl"] },
+                  "prompt": { "type": "string" }, "grow": { "type": "integer", "description": "보이는 부분에서 연장할 px(기본 60)" },
+                  "seed": { "type": "string", "description": "보이는 부분이 없을 때 색을 빌릴 레이어 id" } } }
+            }
+          },
           "draft": {
             "type": "object",
-            "description": "draft_split.py 힌트. roi는 reference.upperBodyCrop 기준 픽셀 좌표",
+            "description": "draft_split.py 힌트(구 파이프라인). roi는 reference.upperBodyCrop 기준 픽셀 좌표",
             "required": ["roi", "color"],
             "properties": {
               "roi": { "type": "array", "items": { "type": "integer" }, "minItems": 4, "maxItems": 4 },

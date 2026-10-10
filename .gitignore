@@ -57,3 +57,6 @@ assets/live2d-authoring/output/*
 
 # Live2D 공식 샘플(재배포 금지, 검증·해독용): npm pack live2dcubismcore@1.0.2 를 푼 폴더
 assets/live2d-authoring/samples/
+
+# 비공개 원화에서 잘라낸 파츠 PNG(cut_parts.py 산출물). .gitkeep 만 추적
+assets/live2d-authoring/layers/*.png
