@@ -1,0 +1,42 @@
+{
+  "name": "kirikomodo",
+  "productName": "Kirikomodo",
+  "version": "0.1.0",
+  "description": "A little desktop companion, inspired by Kiriko.",
+  "private": true,
+  "main": "./out/main/main.js",
+  "author": "ReguMaster",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "preview": "electron-vite preview",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "npm run typecheck",
+    "test": "vitest run",
+    "dist": "npm run build && electron-builder --win --config electron-builder.yml",
+    "postinstall": "electron-builder install-app-deps",
+    "test:e2e": "electron tests/e2e/smoke.cjs",
+    "test:e2e:live2d": "electron tests/e2e/live2d.cjs",
+    "test:moc3": "node tools/moc3/selftest.cjs",
+    "test:authoring": "python tools/live2d-authoring/selftest.py"
+  },
+  "dependencies": {
+    "zod": "^4.6.5",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7",
+    "vitest": "^4.1.11"
+  }
+}
