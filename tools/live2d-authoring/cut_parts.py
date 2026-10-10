@@ -9,6 +9,7 @@
    초기 이미지로 SDXL 인페인팅해 질감을 입힌다.
 3. expr 레이어는 output/expressions/<name>.full.png 에서 (원본 파츠 마스크 ∪ 변화 영역)을 잘라낸다.
 4. draw 레이어(눈썹)는 호를 직접 그린다.
+5. 눈 변형 레이어의 회색 잔상·먼 조각을 clean_eyes.py 로 정리한다(--no-clean 으로 생략).
 work/ 에 labelmap.png(라벨 오버레이)·unassigned.png 를 남긴다.
 """
 from __future__ import annotations
@@ -24,6 +25,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from clean_eyes import clean_all  # noqa: E402
 from common import DEFAULT_LAYERS, DEFAULT_PLAN, load_plan  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -308,7 +310,7 @@ class Cutter:
         out.alpha_composite(small, (x0 // S, y0 // S))
         return np.asarray(out)
 
-    def run(self, out_dir: Path, only: set[str] | None, do_restore: bool) -> None:
+    def run(self, out_dir: Path, only: set[str] | None, do_restore: bool, do_clean: bool = True) -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         self.assign()
         if self._sam is not None:  # SDXL 전에 SAM(ViT-H) VRAM 반납
@@ -336,6 +338,8 @@ class Cutter:
                 Image.fromarray(rgba).save(out_dir / f'{lid}.png')
         assert np.array_equal(comp[self.alpha], self.base[self.alpha]) and not comp[~self.alpha].any(), '분리 합성이 원본과 다름'
         print('split composite == base: OK')
+        if do_clean and only is None:
+            clean_all(out_dir)
 
 
 def main() -> None:
@@ -346,9 +350,10 @@ def main() -> None:
     ap.add_argument('--only', help='쉼표로 구분한 레이어 id. 지정하면 그 레이어만 저장·복원')
     ap.add_argument('--no-restore', action='store_true')
     ap.add_argument('--no-sdxl', action='store_true', help='sdxl 복원도 cv2 결과로 대체')
+    ap.add_argument('--no-clean', action='store_true', help='눈 변형 레이어 잔상 정리(clean_eyes.py)를 생략')
     a = ap.parse_args()
     plan = load_plan(a.plan)
-    Cutter(plan, a.work, not a.no_sdxl).run(a.out, set(a.only.split(',')) if a.only else None, not a.no_restore)
+    Cutter(plan, a.work, not a.no_sdxl).run(a.out, set(a.only.split(',')) if a.only else None, not a.no_restore, not a.no_clean)
 
 
 if __name__ == '__main__':

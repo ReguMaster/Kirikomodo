@@ -120,12 +120,29 @@ def test_pipeline(tmp: Path) -> None:
     assert r.returncode == 2 and "BLOCKED_INPUT" in r.stderr, r.stderr
 
 
+def test_clean_eyes() -> None:
+    import numpy as np
+    from clean_eyes import clean_variant
+    skin = (250, 228, 220)
+    layer = np.zeros((300, 300, 4), np.uint8)
+    layer[100:170, 100:200] = (*skin, 255)
+    layer[100:131, 100:200, :3] = (205, 198, 198)        # 윗눈꺼풀 위 회색 잔상
+    layer[135:143, 120:180, :3] = (30, 12, 11)           # 속눈썹 호
+    layer[270:280, 270:280] = (220, 160, 150, 255)       # 눈에서 먼 조각
+    base_eye = np.zeros((300, 300), bool)
+    base_eye[120:160, 110:190] = True
+    out = clean_variant(layer, base_eye, skin)
+    assert out[115, 150, 3] == 255 and np.abs(out[115, 150, :3].astype(int) - skin).max() < 12, out[115, 150]
+    assert tuple(out[138, 150, :3]) == (30, 12, 11), "속눈썹 호는 그대로"
+    assert out[275, 275, 3] == 0, "눈에서 먼 조각은 버려야 함"
+
+
 def main() -> None:
     assert FIX.is_dir(), "먼저 python tools/live2d-authoring/make_fixtures.py 실행"
     with tempfile.TemporaryDirectory(prefix="kmd-live2d-") as td:
         tmp = Path(td)
         for name, fn in (("contract", test_contract), ("help", test_help), ("layers", lambda: test_layers(tmp)),
-                         ("export_validation", lambda: test_export_validation(tmp)),
+                         ("export_validation", lambda: test_export_validation(tmp)), ("clean_eyes", test_clean_eyes),
                          ("pipeline", lambda: test_pipeline(tmp))):
             fn()
             print(f"ok  {name}")

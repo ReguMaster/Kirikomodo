@@ -16,7 +16,7 @@
 | 배포 빌드 | `docs/final-report.md` 1절 참조 | `npm run dist` |
 
 ## 재생성 방법
-`python tools/moc3/kiriko.py` 한 번이면 `assets/models/private/kiriko/` 에 moc3·model3·exp3 7·motion3 10·physics3·model-map 을 모두 다시 쓴다. 레이어를 바꾸면 `make_layer_plan.py` → `cut_parts.py` → `make_atlas.py` 뒤에 실행한다. 전체 순서와 결정 사항은 `docs/moc3-generation-handoff.md`.
+`python tools/moc3/kiriko.py` 한 번이면 `assets/models/private/kiriko/` 에 moc3·model3·exp3 7·motion3 10·physics3·model-map 을 모두 다시 쓴다. 레이어를 바꾸면 `make_layer_plan.py` → `cut_parts.py`(끝에서 `clean_eyes.py` 자동 실행) → `make_atlas.py` 뒤에 실행한다. 전체 순서와 결정 사항은 `docs/moc3-generation-handoff.md`.
 
 ## 알려진 한계
 - 렌더러는 가변 dt 1회 적분 물리(프레임 급락 시 공식 고정 스텝 분할 필요), 하드 스텐실 마스크, pose3/사운드/립싱크 미지원.

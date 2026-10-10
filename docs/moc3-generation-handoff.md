@@ -112,6 +112,11 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - **9**: `npm run build` 뒤 `KMD_L2D_MODEL=assets/models/private/kiriko/kiriko.model3.json npm run test:e2e:live2d` 확장판(표정 6종·모션 9종 화면 변화 >200px, physics3 로드, ParamHairBack/Tail/Tassel 변동) all passed. `KMD_SHOT_DIR` 캡처를 컨택트 시트로 육안 확인: 표정·고개·입이 2D 일러스트 그대로 또렷하게 바뀜. `npm run test:e2e` 29/29, typecheck 통과. **e2e 는 `out/` 을 쓰므로 build 를 먼저 해야 새 렌더러가 반영된다.**
 - **10**: `docs/model-production-status.md`·`implementation-progress.md`·`final-report.md` 를 실제 결과로 갱신, `npm run dist` 통과(`release/Kirikomodo-Setup-0.1.0.exe`·`Kirikomodo-0.1.0-portable.exe`).
 
+## 눈 변형 정리 (2026-10-10, 품질 개선 1~2단계)
+- **발견**: 고해상도 캡처(`KMD_HIRES=1 KMD_SHOT_DIR=<폴더> npm run test:e2e:live2d`, 1280×1600)로 보니 눈 변형 6종(Closed·Half·Wide·Teary·Glare·Sleepy)×좌우 12장 전부 윗눈꺼풀 위에 **회색·흰 반투명 잔상**(SDXL 이 기존 눈을 지우며 남긴 유령)이 있었고, 눈에서 먼 머리카락 조각(분홍 얼룩)과 Sleepy L 의 암적색 사각형도 변형으로 잡혀 있었다. 이전 캡처의 "neutral 이상"은 모델 문제가 아니라 앱 인사 말풍선이 curious 감정을 적용한 상태에서 찍힌 것이었다(하네스에서 neutral 고정으로 해결).
+- **`tools/live2d-authoring/clean_eyes.py`**(`cut_parts.py` 가 끝에 자동 호출, `--no-clean` 으로 생략): ① 기본 눈(White/Iris/Lashes) ∪ 진한 갈색 선(V<0.34·S>0.2, 가장 큰 덩어리 25% 이상)을 18px 부풀린 영역 밖은 버리고 경계 페더. ② 열마다 가장 위의 어두운 선(닫기 폭 31 로 가시 제거) 위쪽에서 밝고 채도 있는 분홍 가닥(S≥0.18·V≥0.72)만 남기고 나머지는 눈 주변 피부색(없으면 Face_Base 의 중앙값)으로 교체. ③ 레이어 바깥 경계 알파 5px 페더. 원본 12장은 `assets/live2d-authoring/output/eye-clean/orig/` 에 보관(Git 무시).
+- 검증: 눈 12장 전후 비교 시트, 모델 재생성(`make_atlas.py` diff 0 → `kiriko.py`) 후 `test:moc3`·`test:authoring`(clean_eyes 합성 검사 추가)·`test:e2e:live2d` all passed, 고해상도 캡처로 happy·playful·concerned·annoyed·sleepy 의 잔상 소멸을 확인. 남은 것: 고개를 기울일 때 드러나는 분리 잔여물(술 옆 붉은 번짐 등), Mouth_Grin·Mouth_Sleepy 가 `expr.box` 에서 평평하게 잘리는 것.
+
 ## 상태
 - 포맷 해독·라운드트립 writer·**처음부터 생성하는 생성기**까지 완료(2026-10-10). `gen.py` 의 `Builder` 로 만든 기하 도형 모델을 Core 가 VALID 로 열고 7개 파라미터가 의도한 드로어블만 움직인다(`npm run test:moc3`). 아직 앱에서 렌더(합격 기준 3)는 안 봤다 — 텍스처가 없는 도형 모델이라 키리코 파츠가 준비되면 본다.
 - TASKS 4·5·6·7 은 위 결과 절 참조. TASKS 8·9·10 은 위 물리 결과·검증 결과 절 참조. **예약 작업 10건 모두 완료.** (아래는 6 시작 전 메모): `Builder` 에 `assets/models/private/kiriko/atlas.json` 의 레이어별 rect/uv 로 파츠 메시·UV 를 넣고 디포머·키폼을 붙인다. 레이어를 바꿀 때는 JSON 을 손으로 고치지 말고 `make_layer_plan.py` 수정 → 재생성 → `cut_parts.py`(≈5분) → `make_atlas.py` 순서로 다시 만든다. 생성기에서 아직 Core 로 안 본 것: 마스크·블렌드 모드·reflect·글루.
