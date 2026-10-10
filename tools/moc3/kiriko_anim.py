@@ -3,6 +3,7 @@
 파라미터 규약은 kiriko.py: 눈 변형 가중치 ParamEyeHalf/Wide/Teary/Glare/Sleepy(0..1), 입 변형 가중치
 ParamMouthO/Grin/Curious/Annoyed/Sleepy(0..1), ParamMouthForm(-1 Frown·0 Line·1 Smile), 감은 눈 = EyeOpen 0.
 변형은 가중치라 일반 곡선으로 바꿔도 되고, 표정이 바뀔 때 기본 눈·입과 변형이 교차 페이드한다.
+머리카락·술·부적은 physics3 가 구동하므로 모션에 넣지 않는다(Weight 100 이 덮어쓴다).
 ParamArmR/L(소매 스윙, 어깨 피벗에서 바깥 +)은 idle·greet·wave·stretch·yawn·reactTap·rest 가 쓴다.
 """
 from __future__ import annotations
@@ -66,9 +67,6 @@ def motions() -> dict[str, dict]:
         'ParamAngleX': smooth(wave(4, D, D)),
         'ParamAngleZ': smooth(wave(2, D, D, phase=1.2)),
         'ParamBodyAngleX': smooth(wave(2, D, D, phase=0.6)),
-        'ParamHairBack': smooth(wave(0.35, D / 2, D)),
-        'ParamHairSide': smooth(wave(0.25, D / 2, D, phase=0.8)),
-        'ParamTassel': smooth(wave(0.3, D / 2, D, phase=1.5)),
         'ParamTail': smooth(wave(0.5, D, D, phase=0.3)),
         'ParamArmR': smooth(wave(0.12, D, D, phase=0.5)),
         'ParamArmL': smooth(wave(0.12, D, D, phase=2.0)),
@@ -90,8 +88,6 @@ def motions() -> dict[str, dict]:
         'ParamEyeLOpen': smooth([(0, 1), (0.6, 0), (1.6, 0), (2.2, 1)]),
         'ParamEyeROpen': smooth([(0, 1), (0.6, 0), (1.6, 0), (2.2, 1)]),
         'ParamMouthForm': smooth([(0, 0), (0.4, 1), (2.2, 1), (2.6, 0)]),
-        'ParamHairFront': smooth([(0, 0), (0.7, 0.8), (1.6, 0.3), (2.6, 0)]),
-        'ParamTassel': smooth([(0, 0), (0.7, 0.9), (1.4, -0.3), (2.6, 0)]),
         'ParamArmR': smooth([(0, 0), (0.6, 0.5), (1.6, 0.5), (2.6, 0)]),
         'ParamArmL': smooth([(0, 0), (0.6, 0.5), (1.6, 0.5), (2.6, 0)]),
     })
@@ -107,7 +103,6 @@ def motions() -> dict[str, dict]:
         'ParamAngleZ': smooth([(0, 0), (0.5, 14), (1.7, 14), (2.2, 0)]),
         'ParamEyeBallX': smooth([(0, 0), (0.5, 0.3), (1.7, 0.3), (2.2, 0)]),
         'ParamEarR': smooth([(0, 0), (0.5, 0.7), (1.7, 0.7), (2.2, 0)]),
-        'ParamHairSide': smooth([(0, 0), (0.6, 0.6), (1.7, 0.4), (2.2, 0)]),
         'ParamBrowLY': smooth([(0, 0), (0.5, 0.5), (1.7, 0.5), (2.2, 0)]),
         'ParamBrowRY': smooth([(0, 0), (0.5, 0.5), (1.7, 0.5), (2.2, 0)]),
     })
@@ -141,7 +136,6 @@ def motions() -> dict[str, dict]:
         'ParamEarL': smooth([(0, 0), (0.15, 1), (1.0, 1), (1.4, 0)]),
         'ParamEarR': smooth([(0, 0), (0.15, 1), (1.0, 1), (1.4, 0)]),
         'ParamTail': smooth([(0, 0), (0.2, 1), (0.6, -0.6), (1.0, 0.3), (1.4, 0)]),
-        'ParamTassel': smooth([(0, 0), (0.2, 1), (0.6, -0.7), (1.0, 0.3), (1.4, 0)]),
         'ParamArmR': smooth([(0, 0), (0.15, 0.7), (0.6, -0.2), (1.4, 0)]),
         'ParamArmL': smooth([(0, 0), (0.15, 0.7), (0.6, -0.2), (1.4, 0)]),
     }, fade_in=0, fade_out=0.3)

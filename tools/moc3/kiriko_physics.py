@@ -8,24 +8,29 @@ from __future__ import annotations
 import json
 import os
 
-# id: (출력 파라미터, 꼭짓점 반지름 목록, 흔들림 지연(Delay), 출력 Scale, 입력 X 가중치, 입력 Angle 가중치)
-STRANDS: dict[str, tuple[str, list[float], float, float, float, float]] = {
-    'HairFront': ('ParamHairFront', [6, 6], 0.9, 6.0, 40, 40),
-    'HairSide': ('ParamHairSide', [8, 8, 8], 0.85, 5.0, 60, 60),
-    'HairBack': ('ParamHairBack', [10, 10, 10], 0.8, 4.0, 70, 70),
-    'Tassel': ('ParamTassel', [6, 6, 6], 0.75, 4.0, 80, 80),
-    'Ofuda': ('ParamOfuda', [8, 8], 0.8, 4.5, 60, 60),
-    'Ribbon': ('ParamRibbon', [6, 6], 0.85, 5.0, 50, 30),
-    'Sleeve': ('ParamSleeve', [10, 10], 0.9, 5.0, 50, 20),
-    'Skirt': ('ParamSkirt', [12, 12], 0.9, 4.5, 60, 20),
-    'Tail': ('ParamTail', [14, 14, 14], 0.7, 3.5, 60, 40),
-    'EarR': ('ParamEarR', [6, 6], 0.9, 6.0, 30, 50),
-    'EarL': ('ParamEarL', [6, 6], 0.9, 6.0, 30, 50),
+# id: (뿌리 출력, 끝 출력 또는 None, 꼭짓점 반지름 목록, 흔들림 지연(Delay), 뿌리 Scale, 끝 Scale, 입력 X 가중치, 입력 Angle 가중치)
+# 뿌리 출력 = 첫 마디의 중력 대비 각, 끝 출력 = 마지막 마디의 앞 마디 대비 굽힘(채찍처럼 늦게 따라오는 휨). 좌우 가닥은 반지름·지연을 달리해 어긋나게 흔들린다.
+STRANDS: dict[str, tuple[str, str | None, list[float], float, float, float, float, float]] = {
+    'HairFront': ('ParamHairFront', 'ParamHairFrontTip', [6, 6], 0.9, 5.0, 4.0, 40, 40),
+    'HairSideR': ('ParamHairSideR', 'ParamHairSideRTip', [8, 8, 8], 0.88, 5.0, 3.0, 60, 60),
+    'HairSideL': ('ParamHairSideL', 'ParamHairSideLTip', [10, 6, 8], 0.7, 5.0, 3.0, 60, 60),
+    'HairBackR': ('ParamHairBackR', 'ParamHairBackRTip', [10, 10, 10], 0.85, 4.0, 3.0, 70, 70),
+    'HairBackL': ('ParamHairBackL', 'ParamHairBackLTip', [13, 8, 9], 0.66, 4.0, 3.0, 70, 70),
+    'HairBackC': ('ParamHairBack', 'ParamHairBackTip', [10, 10, 10], 0.83, 3.0, 2.5, 70, 70),
+    'TasselR': ('ParamTasselR', 'ParamTasselRTip', [6, 6, 6], 0.78, 4.0, 3.0, 80, 80),
+    'TasselL': ('ParamTasselL', 'ParamTasselLTip', [8, 5, 5], 0.62, 4.0, 3.0, 80, 80),
+    'Ofuda': ('ParamOfuda', 'ParamOfudaTip', [8, 8], 0.8, 4.5, 3.0, 60, 60),
+    'Ribbon': ('ParamRibbon', None, [6, 6], 0.85, 5.0, 0.0, 50, 30),
+    'Sleeve': ('ParamSleeve', None, [10, 10], 0.9, 5.0, 0.0, 50, 20),
+    'Skirt': ('ParamSkirt', None, [12, 12], 0.9, 4.5, 0.0, 60, 20),
+    'Tail': ('ParamTail', None, [14, 14, 14], 0.7, 3.5, 0.0, 60, 40),
+    'EarR': ('ParamEarR', None, [6, 6], 0.9, 6.0, 0.0, 30, 50),
+    'EarL': ('ParamEarL', None, [6, 6], 0.9, 6.0, 0.0, 30, 50),
 }
 BODY_DRIVEN = {'Ribbon', 'Sleeve', 'Skirt', 'Tail'}
 
 
-def setting(sid: str, pid: str, radii: list[float], delay: float, scale: float, wx: float, wa: float) -> dict:
+def setting(sid: str, pid: str, tip: str | None, radii: list[float], delay: float, scale: float, tip_scale: float, wx: float, wa: float) -> dict:
     body = sid in BODY_DRIVEN
     inputs = [
         {'Source': {'Target': 'Parameter', 'Id': 'ParamBodyAngleX' if body else 'ParamAngleX'}, 'Weight': wx, 'Type': 'X', 'Reflect': False},
@@ -41,7 +46,8 @@ def setting(sid: str, pid: str, radii: list[float], delay: float, scale: float, 
     return {
         'Id': 'PhysicsSetting_' + sid,
         'Input': inputs,
-        'Output': [{'Destination': {'Target': 'Parameter', 'Id': pid}, 'VertexIndex': len(radii), 'Scale': scale, 'Weight': 100, 'Type': 'Angle', 'Reflect': False}],
+        'Output': [{'Destination': {'Target': 'Parameter', 'Id': pid}, 'VertexIndex': 1, 'Scale': scale, 'Weight': 100, 'Type': 'Angle', 'Reflect': False}]
+        + ([{'Destination': {'Target': 'Parameter', 'Id': tip}, 'VertexIndex': len(radii), 'Scale': tip_scale, 'Weight': 100, 'Type': 'Angle', 'Reflect': False}] if tip else []),
         'Vertices': vertices,
         'Normalization': {'Position': {'Minimum': -10, 'Default': 0, 'Maximum': 10}, 'Angle': {'Minimum': -10, 'Default': 0, 'Maximum': 10}},
     }

@@ -12,7 +12,7 @@
 | 키리코 moc3 조립 | ✅ Core VALID | `tools/moc3/kiriko.py`: 파츠 14·파라미터 28·워프 2·아트메시 58 |
 | 표정 7종·모션 10종·model-map | ✅ 완료 | `tools/moc3/kiriko_anim.py` |
 | 소매 스윙 `ParamArmR/L` (어깨 피벗, 최대 7°) | ✅ | `kiriko.py` `ARM_*`, wave·stretch·greet 등 7 모션이 사용 |
-| physics3 (머리카락·술·부적·옷자락·꼬리·귀 11 설정) | ✅ 완료 | `tools/moc3/kiriko_physics.py`, 로더 `src/character/live2dPhysics.ts` |
+| physics3 (머리카락 좌우 분리·술·부적·옷자락·꼬리·귀 15 설정, 뿌리+끝 2단 굽힘) | ✅ 완료 | `tools/moc3/kiriko_physics.py`, 로더 `src/character/live2dPhysics.ts` |
 | 앱 통합·전체 검증 | ✅ 통과 | `KMD_L2D_MODEL=assets/models/private/kiriko/kiriko.model3.json npm run test:e2e:live2d` all passed, 캡처 육안 확인 |
 | 배포 빌드 | `docs/final-report.md` 1절 참조 | `npm run dist` |
 

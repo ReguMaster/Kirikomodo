@@ -28,15 +28,26 @@ MOUTH_VARIANTS = {'Mouth_O': 'ParamMouthO', 'Mouth_Grin': 'ParamMouthGrin', 'Mou
 HEAD_RECT = (700, 100, 1850, 1720)      # 머리 워프 격자(px). 귀·술·옆머리까지 포함
 HEAD_PIVOT = (1265, 1050)               # 목
 BODY_PIVOT = (1265, 3006)
-# 흔들림(물리) 파라미터: 레이어 → (파라미터, 진폭 px, 고정축 'top'|'pivot', 피벗 px)
+# 가닥형 흔들림(머리카락·술·부적): 레이어 → (뿌리 파라미터, 끝 파라미터, 뿌리 각 계수 rad, 끝 굽힘 계수 rad). 위가 고정된 막대가
+# θ(u) = a1·P1 + a2·P2·u 로 휘는 모델이라 x(u) = h·(a1·P1·u + ½·a2·P2·u²). 뿌리는 진자 첫 마디 각, 끝은 마지막 마디의 상대 굽힘(물리 출력).
+# 좌우 가닥은 파라미터(물리 설정)가 따로라 서로 어긋난 타이밍으로 흔들린다.
+HAIR = {
+    'Hair_Back_R': ('ParamHairBackR', 'ParamHairBackRTip', 0.05, 0.09),
+    'Hair_Back_L': ('ParamHairBackL', 'ParamHairBackLTip', 0.05, 0.09),
+    'Hair_Back_Center': ('ParamHairBack', 'ParamHairBackTip', 0.03, 0.05),
+    'Hair_Side_R': ('ParamHairSideR', 'ParamHairSideRTip', 0.06, 0.12),
+    'Hair_Side_L': ('ParamHairSideL', 'ParamHairSideLTip', 0.06, 0.12),
+    'Hair_Over_R': ('ParamHairSideR', 'ParamHairSideRTip', 0.05, 0.08),
+    'Hair_Over_L': ('ParamHairSideL', 'ParamHairSideLTip', 0.05, 0.08),
+    'Hair_Front': ('ParamHairFront', 'ParamHairFrontTip', 0.03, 0.06),
+    'Tassel_R': ('ParamTasselR', 'ParamTasselRTip', 0.08, 0.15),
+    'Tassel_L': ('ParamTasselL', 'ParamTasselLTip', 0.08, 0.15),
+    'Mask_Tassel': ('ParamTasselL', 'ParamTasselLTip', 0.07, 0.12),
+    'Ofuda': ('ParamOfuda', 'ParamOfudaTip', 0.09, 0.14),
+}
+HAIR_PARAMS = list(dict.fromkeys(pid for spec in HAIR.values() for pid in spec[:2]))
+# 단순 흔들림(옷): 레이어 → (파라미터, 진폭 px). 위가 고정되고 아래로 갈수록 t² 로 커진다
 SWAY = {
-    'Hair_Back_R': ('ParamHairBack', 45, 'top'), 'Hair_Back_L': ('ParamHairBack', 45, 'top'),
-    'Hair_Back_Center': ('ParamHairBack', 30, 'top'),
-    'Hair_Side_R': ('ParamHairSide', 25, 'top'), 'Hair_Side_L': ('ParamHairSide', 25, 'top'),
-    'Hair_Over_R': ('ParamHairSide', 20, 'top'), 'Hair_Over_L': ('ParamHairSide', 20, 'top'),
-    'Hair_Front': ('ParamHairFront', 14, 'top'),
-    'Tassel_R': ('ParamTassel', 35, 'top'), 'Tassel_L': ('ParamTassel', 35, 'top'), 'Mask_Tassel': ('ParamTassel', 25, 'top'),
-    'Ofuda': ('ParamOfuda', 30, 'top'),
     'Apron': ('ParamSkirt', 25, 'top'), 'Hakama': ('ParamSkirt', 25, 'top'),
     'Ribbon_Waist': ('ParamRibbon', 15, 'top'), 'Bell_Chest': ('ParamRibbon', 12, 'top'),
     'Sleeve_R': ('ParamSleeve', 18, 'top'), 'Sleeve_L': ('ParamSleeve', 18, 'top'),
@@ -113,8 +124,7 @@ class Kiriko:
         P('ParamBreath', 0, 1, 0)
         for pid in ('ParamArmR', 'ParamArmL'):
             P(pid, -1, 1, 0, keys=ARM_KEYS)
-        for pid in ('ParamEarR', 'ParamEarL', 'ParamTail', 'ParamHairFront', 'ParamHairSide', 'ParamHairBack',
-                    'ParamTassel', 'ParamOfuda', 'ParamSkirt', 'ParamRibbon', 'ParamSleeve'):
+        for pid in ('ParamEarR', 'ParamEarL', 'ParamTail', *HAIR_PARAMS, 'ParamSkirt', 'ParamRibbon', 'ParamSleeve'):
             P(pid, -1, 1, 0, keys=[-1, 0, 1])
 
     # ---- 디포머 ----
@@ -149,7 +159,7 @@ class Kiriko:
     def mesh_for(self, lid: str, w: int, h: int):
         if lid.startswith('Sleeve_'):
             return 3, 12
-        if lid in SWAY or lid == 'Tail':
+        if lid in SWAY or lid in HAIR or lid == 'Tail':
             return 3, 8
         if lid.startswith('Ear'):
             return 2, 3
@@ -158,6 +168,10 @@ class Kiriko:
     def transform(self, lid: str, v: dict, x: float, y: float, geo: dict):
         """레이어 하나의 정점(px) 을 파라미터 값으로 변형. 머리/몸 워프의 영향은 부모가 처리하므로 여기서는 고유 변형만."""
         x0, y0, w, h = geo['x0'], geo['y0'], geo['w'], geo['h']
+        if lid in HAIR:
+            p1, p2, a1, a2 = HAIR[lid]
+            u = (y - y0) / h
+            x += h * (a1 * v[p1] * u + 0.5 * a2 * v[p2] * u * u)
         if lid in SWAY:
             pid, amp, _ = SWAY[lid]
             t = (y - y0) / h
@@ -221,6 +235,8 @@ class Kiriko:
 
     def bind_params(self, lid: str) -> list[str]:
         ps: list[str] = []
+        if lid in HAIR:
+            ps += list(HAIR[lid][:2])
         if lid in SWAY:
             ps.append(SWAY[lid][0])
         if lid in ARM_PIVOT:

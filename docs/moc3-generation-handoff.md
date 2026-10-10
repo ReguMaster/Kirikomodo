@@ -104,7 +104,7 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - 재생성: `python tools/moc3/kiriko.py` 한 번이면 moc3·model3·exp3·motion3·model-map 모두 다시 쓴다.
 
 ## 물리 결과 (2026-10-10, TASKS 8)
-- **`tools/moc3/kiriko_physics.py`**(kiriko.py 가 import): `kiriko.physics3.json` 11 설정(HairFront/HairSide/HairBack/Tassel/Ofuda/Ribbon/Sleeve/Skirt/Tail/EarR/EarL). 입력은 머리 계열이 ParamAngleX(X)+ParamAngleZ(Angle), 몸 계열(Ribbon/Sleeve/Skirt/Tail)이 ParamBodyAngleX(X)+ParamAngleZ+ParamAngleX. 출력은 끝 꼭짓점 각(라디안)×Scale(3.5~6) → -1..1 파라미터, Weight 100(모션의 같은 파라미터 커브는 물리가 덮어씀). Normalization ±10 은 Editor 기본값.
+- **`tools/moc3/kiriko_physics.py`**(kiriko.py 가 import): `kiriko.physics3.json` 설정(초기 11 → 4단계에서 15: 머리·술·부적은 좌우 분리, 아래 "가닥형 머리카락" 절). 입력은 머리 계열이 ParamAngleX(X)+ParamAngleZ(Angle), 몸 계열(Ribbon/Sleeve/Skirt/Tail)이 ParamBodyAngleX(X)+ParamAngleZ+ParamAngleX. 출력은 끝 꼭짓점 각(라디안)×Scale(3.5~6) → -1..1 파라미터, Weight 100(모션의 같은 파라미터 커브는 물리가 덮어씀). Normalization ±10 은 Editor 기본값.
 - **앱 로더**: `src/character/live2dPhysics.ts`(parsePhysics3·stepPhysics, 공식 CubismPhysics 진자 알고리즘: normalize→totalTranslation/Angle→updateParticles(airResistance 5)→directionToRadian 출력). `Live2DRenderer` 가 model3 FileReferences.Physics 를 읽어 매 프레임 시선·호흡 뒤·클램프 전에 적용(reduceMotion 이면 건너뜀). `inspectModel3` 에 `physics` 경로 추가. 가변 dt 1회 적분이라 프레임 급락 시 공식처럼 고정 스텝 분할이 필요할 수 있음.
 - **검증**: `tests/unit/live2dPhysics.test.ts`(고개 30° 입력에 머리카락 peak>0.2, 10s 뒤 <0.02 로 정지), typecheck·test 45 통과, `npm run test:moc3` 에 physics 설정 수 검사 추가 후 통과, `KMD_L2D_MODEL=assets/models/private/kiriko/kiriko.model3.json npm run test:e2e:live2d` 21파일 가져오기+렌더 all passed(캡처 정상). 아직 안 본 것: 앱에서 흔들림 모습(9번에서 육안·파라미터 로그로 확인).
 
@@ -128,6 +128,13 @@ env -u ELECTRON_RUN_AS_NODE KMD_L2D_MODEL=<생성한 .model3.json> npm run test:
 - **변경**: 변형마다 독립 0..1 가중치 파라미터로 분리(눈 5·입 5). 변형 레이어 불투명도 = (눈은 EyeOpen 교차 × ) 자기 가중치, 기본 눈·입(White/Iris/Lashes, Line/Open/Smile/Frown) 불투명도 = (1 − 가중치 합, 상한 1). 표정이 바뀌면 두 이미지가 교차 페이드한다. 기본 눈이 모든 가중치에 묶여 키폼이 늘어 moc3 가 1.1MB → 4.1MB 가 됐다(Core 갱신 비용은 무시할 수준).
 - **렌더러**(`src/character/Live2DRenderer.ts`): `setEmotion` 이 이전 표정 데이터를 들고 있다가 새 표정이 들어오는 동안(fadeIn 0.3s) 가중치 `1 − w` 로 이전 표정을 적용해 페이드아웃한다. neutral 로 돌아갈 때도 부드럽다.
 - 검증: `test:moc3` 에 "변형 가중치는 기본 눈·입과 교차 페이드" 검사 추가, 표정 전환 중간 프레임(80·160·240·500ms)을 양방향으로 캡처해 중간 상태가 섞이고 최종 상태가 정확한 것을 확인, `test:e2e:live2d` all passed. 전환 캡처 스크립트는 일회용이라 저장소에 넣지 않았다(`KMD_SHOT_DIR` 하네스로 충분).
+
+## 가닥형 머리카락 (2026-10-10, 품질 개선 4단계 — 머리카락)
+- **문제**: 머리카락·술·부적이 레이어마다 `x += 진폭·P·t²` 한 번의 포물선 이동뿐이었고, 좌우 가닥이 같은 파라미터(ParamHairBack/HairSide/Tassel)를 공유해 항상 똑같이 움직였다.
+- **변경**(`kiriko.py` `HAIR` 표): 레이어마다 파라미터 2개 — **뿌리**(진자 첫 마디의 중력 대비 각)와 **끝**(마지막 마디의 앞 마디 대비 굽힘, 채찍처럼 늦게 따라오는 휨). 위가 고정된 막대 `θ(u) = a1·P1 + a2·P2·u` 를 적분해 `x(u) = h·(a1·P1·u + ½·a2·P2·u²)`(모델이 P 에 선형이라 키 3개로 정확). 뿌리·끝이 서로 다른 부호면 S 자로 휜다. 새 파라미터: ParamHairBackR/L(+Tip)·HairBack(+Tip, 중앙)·HairSideR/L(+Tip, Hair_Over 와 공유)·HairFront(+Tip)·TasselR/L(+Tip, Mask_Tassel 은 L)·Ofuda(+Tip). 옛 ParamHairSide/ParamTassel 은 없앴고 모션에서도 뺐다(물리 Weight 100 이 덮어써서 어차피 무효였다).
+- **물리**(`kiriko_physics.py`): 설정 15개. 좌우 가닥은 꼭짓점 반지름·지연을 달리해(예: BackR [10,10,10]·0.85 / BackL [13,8,9]·0.66) 같은 입력에도 어긋나게 흔들린다. 출력은 뿌리(VertexIndex 1, Scale 3~5)와 끝(VertexIndex 마지막, Scale 2.5~4). 끝 Scale 을 처음 6 으로 두면 idle 에서도 ±1 에 포화돼 3 으로 낮췄다.
+- **측정**(앱에서 6초 idle·look·headTilt 샘플링): 뿌리 ±0.2~0.65, 끝 ±0.5~0.9(포화 없음), 좌우 RMS 차이 back 0.11·side 0.12·tassel 0.17(look 중엔 0.16·0.18·0.25) — 한쪽이 다른 쪽을 그대로 따라가지 않는다. `test:e2e:live2d` 에 "좌우 가닥이 다르게 흔들림" 검사 추가, `test:moc3` 에 독립성 검사 추가.
+- 알려진 잔여물: 고개를 기울이면 술 왼쪽에 흐린 붉은 번짐이 보인다(Tassel 복원 영역, 휴지 자세에서는 가려짐). 입 변형 Mouth_Grin·Mouth_Sleepy 가 `expr.box` 에서 평평하게 잘리는 것도 그대로다(`make_layer_plan.py` MOUTH_EXPR_BOX 를 넓히고 `cut_parts.py` 재실행 필요).
 
 ## 상태
 - 포맷 해독·라운드트립 writer·**처음부터 생성하는 생성기**까지 완료(2026-10-10). `gen.py` 의 `Builder` 로 만든 기하 도형 모델을 Core 가 VALID 로 열고 7개 파라미터가 의도한 드로어블만 움직인다(`npm run test:moc3`). 아직 앱에서 렌더(합격 기준 3)는 안 봤다 — 텍스처가 없는 도형 모델이라 키리코 파츠가 준비되면 본다.

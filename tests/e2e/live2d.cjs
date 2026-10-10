@@ -103,13 +103,15 @@ async function run() {
   const hook = await js('window.__kmdLive2D ? { physics: window.__kmdLive2D.physics } : null')
   check('physics3 loaded', hook?.physics === true, JSON.stringify(hook))
   if (hook?.physics) {
+    const ids = ['ParamHairBackR', 'ParamHairBackL', 'ParamHairBackRTip', 'ParamTail', 'ParamTasselL']
     const samples = []
-    for (let i = 0; i < 12; i++) {
-      samples.push(await js(`[window.__kmdLive2D.param('ParamHairBack'), window.__kmdLive2D.param('ParamTail'), window.__kmdLive2D.param('ParamTassel')]`))
+    for (let i = 0; i < 24; i++) {
+      samples.push(await js(`${JSON.stringify(ids)}.map((id) => window.__kmdLive2D.param(id))`))
       await sleep(120)
     }
-    const spread = (k) => Math.max(...samples.map((s) => s[k])) - Math.min(...samples.map((s) => s[k]))
-    check('physics3 moves hair/tail/tassel', [0, 1, 2].every((k) => spread(k) > 0.01 && spread(k) <= 2), samples.map((s) => s.map((v) => v.toFixed(2)).join('/')).join(' '))
+    const spread = (f) => Math.max(...samples.map(f)) - Math.min(...samples.map(f))
+    check('physics3 moves hair/tail/tassel', ids.map((_, k) => spread((s) => s[k])).every((v) => v > 0.01 && v <= 2), samples.slice(0, 6).map((s) => s.map((v) => v.toFixed(2)).join('/')).join(' '))
+    check('left/right hair strands swing differently', spread((s) => s[0] - s[1]) > 0.01, `${spread((s) => s[0] - s[1]).toFixed(3)}`)
   }
 }
 
