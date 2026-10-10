@@ -74,6 +74,17 @@ function schedulePositionSave(): void {
   }, POSITION_SAVE_DELAY_MS)
 }
 
+// 종료 직전 이동분이 디바운스 타이머에 묶여 유실되지 않도록 즉시 저장 체인에 올린다.
+export function flushCharacterPosition(): void {
+  if (!positionSaveTimer) return
+  clearTimeout(positionSaveTimer)
+  positionSaveTimer = null
+  const target = getCharacterWindow()
+  if (!target) return
+  const { x, y } = target.getBounds()
+  void updateSettings({ window: { x, y } })
+}
+
 function applySettings(settings: Settings): void {
   const target = getCharacterWindow()
   if (!target) return

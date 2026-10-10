@@ -6,7 +6,7 @@ import { log } from './services/logger'
 import { registerModelProtocol, registerModelScheme } from './services/models'
 import { flushSettings, getSettings, loadSettings, onSettingsChanged } from './services/settings'
 import { createTray, destroyTray } from './tray'
-import { createCharacterWindow, getCharacterWindow, watchCharacterEnvironment } from './windows/character'
+import { createCharacterWindow, flushCharacterPosition, getCharacterWindow, watchCharacterEnvironment } from './windows/character'
 
 const CSP = [
   "default-src 'self'",
@@ -72,11 +72,17 @@ if (!app.requestSingleInstanceLock()) {
 // 상주 앱: 채팅/설정 창을 모두 닫아도 종료하지 않는다. 완전 종료는 트레이 '종료' → app.quit() 경유.
 app.on('window-all-closed', () => undefined)
 
-app.on('before-quit', () => {
+// 설정 저장이 끝난 뒤 종료한다. 한 번 막고 flush 후 다시 quit() 하므로 재진입을 막는다.
+let quitting = false
+app.on('before-quit', (event) => {
+  if (quitting) return
+  quitting = true
+  event.preventDefault()
   log.info('app', 'quitting')
   destroyTray()
   closeDialogueStore()
-  void flushSettings()
+  flushCharacterPosition()
+  void flushSettings().finally(() => app.quit())
 })
 
 process.on('uncaughtException', (err) => log.error('process', 'uncaughtException', err))
