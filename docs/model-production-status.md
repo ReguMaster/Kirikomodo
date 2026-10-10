@@ -5,7 +5,7 @@
 | 항목 | 상태 | 비고 |
 |---|---|---|
 | 앱 플레이스홀더 캐릭터 | ✅ 구현 | 작업 3·4·5 (`src/character/`) |
-| Live2D 런타임 로더 | ✅ 구현(실모델 미검증) | Core·모델 없으면 플레이스홀더 자동 폴백. `docs/implementation-progress.md` 10절 |
+| Live2D 런타임 로더 | ✅ 구현·샘플 Haru 실렌더링 검증 | Core·모델 없으면 플레이스홀더 자동 폴백. `docs/implementation-progress.md` 10절 |
 | 에셋 제작 도구 | ✅ 준비 | `tools/live2d-authoring/` 9종, 자체검증 `npm run test:authoring` |
 | 레이어 계약·파츠 목록 | ✅ 76 레이어 / 17 그룹 | `docs/live2d-layer-contract.json`, `docs/live2d-kiriko-parts.md` |
 | 키리코 원화(배포 가능) | ❌ 없음 | `kiriko.png` 는 비배포 레퍼런스(`docs/asset-rights.md`) |
@@ -15,6 +15,9 @@
 | Cubism Editor 임포트·리깅 | ❌ REQUIRES_EDITOR | Cubism Editor 미설치 |
 | moc3 내보내기·검증 | ❌ REQUIRES_EDITOR | `validate_export.py` 는 픽스처로만 검증됨 |
 | 런타임 통합 | ⏳ 로더 준비됨 | moc3 완성 후 설정 > 모델 > 가져오기로 로드 확인 |
+
+## 진행 방향 (2026-10-10 결정)
+Cubism Editor 없이 `.moc3` 를 직접 생성한다. 판정기·해독 출발점·순서는 `docs/moc3-generation-handoff.md`. 생성 착수 전.
 
 ## 남은 사람 작업
 

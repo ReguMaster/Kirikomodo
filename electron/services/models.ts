@@ -21,6 +21,7 @@ const MIME: Record<string, string> = { '.json': 'application/json', '.png': 'ima
 
 const modelsDir = (): string => join(app.getPath('userData'), 'models')
 const coreDir = (): string => join(app.getPath('userData'), 'live2d')
+const bundledCoreDir = (): string => join(app.isPackaged ? process.resourcesPath : app.getAppPath(), 'external', 'live2dcubismcore')
 const registryPath = (): string => join(modelsDir(), 'models.json')
 
 // app.whenReady 이전에 호출해야 한다. 렌더러가 script/img/fetch 로 모델·Core 파일을 읽는 전용 스킴.
@@ -28,16 +29,29 @@ export function registerModelScheme(): void {
   protocol.registerSchemesAsPrivileged([{ scheme: MODEL_PROTOCOL, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 }
 
+// 사용자가 userData/live2d 에 둔 Core 가 있으면 우선(교체용), 없으면 앱에 포함된 external/live2dcubismcore 를 쓴다.
+async function findCore(): Promise<string | null> {
+  for (const dir of [coreDir(), bundledCoreDir()]) {
+    const file = join(dir, CORE_FILE)
+    if (await access(file).then(() => true, () => false)) return file
+  }
+  return null
+}
+
 export function registerModelProtocol(): void {
   protocol.handle(MODEL_PROTOCOL, async (request) => {
     const notFound = new Response('not found', { status: 404 })
     const url = new URL(request.url)
-    const root = url.hostname === 'core' ? coreDir() : url.hostname === 'models' ? modelsDir() : null
     const segments = decodeURIComponent(url.pathname).split('/').filter(Boolean)
-    if (!root || segments.length === 0 || segments.some((s) => s === '..' || s === '.')) return notFound
-    const file = join(root, ...segments)
-    if (!file.startsWith(root + sep)) return notFound
-    if (root === coreDir() && basename(file) !== CORE_FILE) return notFound
+    if (segments.length === 0 || segments.some((s) => s === '..' || s === '.')) return notFound
+    let file: string | null = null
+    if (url.hostname === 'core') {
+      if (segments.length === 1 && segments[0] === CORE_FILE) file = await findCore()
+    } else if (url.hostname === 'models') {
+      file = join(modelsDir(), ...segments)
+      if (!file.startsWith(modelsDir() + sep)) file = null
+    }
+    if (!file) return notFound
     const res = await net.fetch(pathToFileURL(file).href).catch(() => null)
     if (!res?.ok) return notFound
     return new Response(res.body, { status: 200, headers: { 'content-type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream', 'access-control-allow-origin': '*' } })
@@ -59,11 +73,7 @@ async function writeRegistry(models: ModelInfo[]): Promise<void> {
 }
 
 export async function listModels(): Promise<ModelLibrary> {
-  const coreAvailable = await access(join(coreDir(), CORE_FILE)).then(
-    () => true,
-    () => false
-  )
-  return { coreAvailable, coreDir: coreDir(), models: await readRegistry() }
+  return { coreAvailable: (await findCore()) !== null, coreDir: coreDir(), models: await readRegistry() }
 }
 
 export function openModelsFolder(): void {
