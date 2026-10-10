@@ -4,7 +4,7 @@
 상태 구분: `구현 완료(검증 전)` / `검증 통과` / `검증 실패` / `미검증` / `외부 도구 필요`.
 "검증 통과"는 `npm run typecheck`·`npm test`·`npm run build`·`npx electron .` 부팅 스모크·오프스크린 캡처 스크립트 중 해당 항목을 통과한 것이며, 실기 사용자 조작 검증은 별도로 표시한다.
 
-최종 갱신: 2026-10-10 (작업 11 완료 시점). 설치 패키지 검증은 작업 12에서 기록한다.
+최종 갱신: 2026-10-10 (작업 12 완료 시점). 최종 보고서는 `docs/final-report.md`.
 
 ## 요약
 
@@ -21,7 +21,7 @@
 | 9 | Live2D 파츠 분리·모델 제작 파이프라인 | df87efe | 도구·문서 완료, 모델은 NEEDS_MANUAL_QA/REQUIRES_EDITOR (`docs/model-production-status.md`) |
 | 10 | Live2D Cubism 모델 로더 | f670b07 | 구현·검증 통과 (vitest + 빌드), 실모델 미검증 (Core·moc3 없음) |
 | 11 | 통합 테스트·타입 검사·빌드·오류 수정 | f301356·142dfe5·67f879c | 검증 통과 (typecheck/vitest 43/build/authoring/E2E 29) |
-| 12 | Kirikomodo.exe 빌드 + 보고서 | – | 미착수 |
+| 12 | Kirikomodo.exe 빌드 + 보고서 | (본 커밋) | 검증 통과 (NSIS+portable 생성, 패키징 exe 부팅), 설치/제거 미검증 |
 
 ## 기능별 상세
 
@@ -78,8 +78,11 @@
 - 발견·수정한 결함: (1) 메인 `speakProactive`가 방해 금지·조용한 시간을 검사하지 않아 렌더러 엔진을 우회하면 발화 가능 → 메인에서도 차단(f301356). (2) 종료 시 500ms 디바운스 중인 위치 저장이 유실(`flushSettings` 미대기) → `before-quit`에서 위치 flush 후 저장 완료를 기다려 종료(142dfe5). 두 결함 모두 수정 전 E2E 실패 → 수정 후 통과로 확인.
 - 미검증(NOT_TESTED): 실기 마우스 체감(hover/드래그는 `sendInputEvent` 주입), 실제 모니터 분리·DPI·절전, 장시간(수 시간) 상주 안정성, Live2D 실모델 렌더링(Core·moc3 없음).
 
-### 12. 패키징 — 미착수
-- 설치 패키지(electron-builder NSIS/portable) 생성·실행 검증은 작업 12에서 기록.
+### 12. 패키징 — 검증 통과 (설치/제거 미검증)
+- `npm run dist` → `release/Kirikomodo-Setup-0.1.0.exe`(NSIS, 약 108 MB), `release/Kirikomodo-0.1.0-portable.exe`(약 107 MB), `release/win-unpacked/`. 코드 서명 없음.
+- 검증: `win-unpacked/Kirikomodo.exe --user-data-dir=<임시>` 부팅 로그 ready, settings/sqlite/logs 가 임시 폴더에 생성, 메인 창 생성, 시작 프로그램 Run 항목 없음(기본 off). 실제 `%APPDATA%` 미접촉.
+- 미검증: NSIS 설치/제거 실행, 포터블 exe 실행, 실제 데스크톱 외관(비대화형 세션에서 캡처 불가).
+- 보고서: `docs/final-report.md`(산출물·검증 결과·구현 현황·미완료·수동 작업).
 
 ## 공통 제약
 - 외부 네트워크·LLM·텔레메트리 없음. 모든 데이터는 `%APPDATA%/Kirikomodo/`에 저장.
